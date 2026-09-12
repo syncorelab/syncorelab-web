@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://syncorelab.de/</loc><priority>1.0</priority></url>
+  <url><loc>https://syncorelab.de/AI%20Experiments/eliza.html</loc><priority>0.6</priority></url>
+  <url><loc>https://syncorelab.de/AI%20Experiments/chinese_room.html</loc><priority>0.6</priority></url>
+  <url><loc>https://syncorelab.de/AI%20Experiments/perceptron.html</loc><priority>0.6</priority></url>
+  <url><loc>https://syncorelab.de/AI%20Experiments/hopfield.html</loc><priority>0.6</priority></url>
+  <url><loc>https://syncorelab.de/AI%20Experiments/next_token.html</loc><priority>0.6</priority></url>
+  <url><loc>https://syncorelab.de/AI%20Experiments/symbolic_vs_statistical.html</loc><priority>0.6</priority></url>
+  <url><loc>https://syncorelab.de/AI%20Experiments/qlearning.html</loc><priority>0.6</priority></url>
+  <url><loc>https://syncorelab.de/AI%20Experiments/evolution.html</loc><priority>0.6</priority></url>
+  <url><loc>https://syncorelab.de/AI%20Experiments/walkers.html</loc><priority>0.6</priority></url>
+  <url><loc>https://syncorelab.de/AI%20Experiments/game_of_life.html</loc><priority>0.6</priority></url>
+  <url><loc>https://syncorelab.de/AI%20Experiments/digit_attribution.html</loc><priority>0.6</priority></url>
+  <url><loc>https://syncorelab.de/impressum.html</loc><priority>0.2</priority></url>
+  <url><loc>https://syncorelab.de/datenschutzerklarung.html</loc><priority>0.2</priority></url>
+</urlset>

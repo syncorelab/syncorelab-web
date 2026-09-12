@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hopfield Network — Associative Memory</title>
+<style>
+  html, body { margin: 0; background: #0a0a0a; color: #ddd;
+               font-family: -apple-system, "Segoe UI", sans-serif; }
+  #app { max-width: 880px; margin: 0 auto; padding: 16px 14px 40px; }
+  h1 { font-size: 20px; margin: 4px 0 2px; }
+  .sub { font-size: 13px; color: #888; margin-bottom: 12px; }
+  details { background: #161616; border: 1px solid #333; border-radius: 8px;
+            padding: 10px 14px; margin-bottom: 14px; font-size: 14px; line-height: 1.5; }
+  summary { cursor: pointer; color: #3ddc84; font-weight: 600; }
+  details p { color: #bbb; }
+  h2 { font-size: 15px; margin: 18px 0 6px; color: #aaa; }
+  .cols { display: flex; gap: 24px; flex-wrap: wrap; }
+  #gridCanvas { border: 1px solid #333; border-radius: 6px; cursor: crosshair;
+                touch-action: none; }
+  button { background: #2d2d2d; color: #ddd; border: 1px solid #444; border-radius: 6px;
+           padding: 6px 14px; font-size: 13px; cursor: pointer; }
+  button:hover { background: #3a3a3a; }
+  button.primary { background: #1e3a2a; border-color: #2e5a40; }
+  button.primary:hover { background: #28503a; }
+  button:disabled { opacity: .4; cursor: default; }
+  .row { display: flex; align-items: center; gap: 8px; margin: 8px 0; flex-wrap: wrap; }
+  .note { font-size: 12px; color: #777; }
+  input[type=range] { width: 120px; }
+  .val { font-size: 13px; color: #aaa; min-width: 38px; font-variant-numeric: tabular-nums; }
+  #stored { display: flex; gap: 10px; flex-wrap: wrap; margin: 8px 0; min-height: 64px; }
+  .thumb { position: relative; border: 1px solid #333; border-radius: 6px; padding: 4px;
+           background: #141414; }
+  .thumb canvas { display: block; cursor: pointer; }
+  .thumb .del { position: absolute; top: -7px; right: -7px; width: 18px; height: 18px;
+                line-height: 15px; text-align: center; padding: 0; border-radius: 50%;
+                font-size: 11px; background: #402020; border-color: #604040; }
+  .thumb .overlap { height: 4px; background: #181818; border-radius: 2px; margin-top: 4px;
+                    overflow: hidden; }
+  .thumb .overlap div { height: 100%; background: #3ddc84; width: 0; }
+  #energyCanvas { border: 1px solid #333; border-radius: 6px; background: #111; }
+  #status { font-size: 13px; color: #8fbf9f; min-height: 18px; margin-top: 6px;
+            font-family: ui-monospace, Menlo, monospace; }
+</style>
+<link rel="stylesheet" href="experiment-shell.css">
+<link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+</head>
+<body class="experiment-page">
+<a class="experiment-skip" href="#app">Skip to experiment</a>
+<header class="experiment-shell">
+  <a class="shell-brand" href="../index.html?skipIntro=1"><strong>SYN·CO·RE</strong> LAB</a>
+  <span class="shell-context">AI Experiment · PSY3230</span>
+  <nav class="shell-nav" aria-label="Experiment navigation"><a href="../index.html?skipIntro=1#experiments">&larr; Back to website</a><a href="../index.html?skipIntro=1#contact">Contact</a></nav>
+</header>
+<div id="app" tabindex="-1">
+  <h1>Hopfield Network</h1>
+  <div class="sub">Associative memory: store patterns, show the network a corrupted cue,
+    and watch it fall into the nearest memory. John Hopfield, 1982 — Nobel Prize in
+    Physics, 2024.</div>
+
+  <details>
+    <summary>What is happening here?</summary>
+    <p>Every pixel is a neuron (+1 black / −1 white), and every neuron is connected to
+    every other. Storing a pattern strengthens connections between pixels that are on
+    together — Hebb's rule: <i>what fires together, wires together</i>. Recall is each
+    neuron repeatedly asking its neighbors what state it should be in.</p>
+    <p>This makes memory <b>content-addressable</b>: you retrieve with a partial or noisy
+    version of the content itself, not with an address. Computers look up; this network
+    <i>settles</i> — each update can only lower a global "energy", so the state rolls
+    downhill into the nearest stored pattern, like a ball into a basin. That is pattern
+    completion, and it is a serious model of how recalling the smell of a kitchen can
+    summon the whole scene.</p>
+    <p>It also fails in instructive ways. With the classic Hebbian rule, capacity is
+    only ~0.14 patterns per neuron (~14 here), and <i>similar</i> patterns are far worse:
+    the letters S, C and R overlap so much that their basins merge and recall collapses
+    into blends or <b>spurious memories</b> — stable states the network "remembers"
+    although they were never stored. Switch the learning rule below to see this: the
+    <b>pseudo-inverse</b> rule first decorrelates the patterns and recalls them cleanly;
+    plain <b>Hebbian</b> learning fails on exactly the same memories. Interference
+    between similar memories is a real phenomenon in human memory, too.</p>
+  </details>
+
+  <div class="cols">
+    <div>
+      <h2>Pattern (draw with the mouse)</h2>
+      <canvas id="gridCanvas"></canvas>
+      <div class="row">
+        <button id="store" class="primary">Store this pattern</button>
+        <button id="clearGrid">Clear</button>
+        <span class="note">presets:</span>
+        <span id="presets"></span>
+      </div>
+      <div class="row">
+        <button id="corrupt">Add noise</button>
+        <input type="range" id="noise" min="5" max="50" value="20">
+        <span class="val" id="noiseVal">20%</span>
+        <button id="erase">Erase bottom half</button>
+      </div>
+      <div class="row">
+        <button id="recall" class="primary">Recall</button>
+        <span id="status"></span>
+      </div>
+      <div class="row">
+        <span class="note">learning rule:</span>
+        <label class="note"><input type="radio" name="rule" value="pinv" checked>
+          pseudo-inverse (robust)</label>
+        <label class="note"><input type="radio" name="rule" value="hebb">
+          Hebbian (classic, struggles with similar patterns)</label>
+      </div>
+    </div>
+    <div>
+      <h2>Stored memories <span class="note" id="capNote"></span></h2>
+      <div id="stored"></div>
+      <h2>Energy during recall</h2>
+      <canvas id="energyCanvas" width="280" height="120"></canvas>
+      <div class="note">Each neuron update can only lower the energy — the network
+        always settles, but not always where you hoped.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+const SIDE = 10, N = SIDE * SIDE;
+const CELL = 32, PAD = 1;
+
+// --- Presets (10x10, '#' = +1) ---
+const PRESETS = {
+  S: ["..........","..#######.",".##.......",".##.......","..######..",
+      ".......##.",".......##.",".#.....##.","..######..",".........."],
+  C: ["..........","..######..",".##....##.",".##.......",".##.......",
+      ".##.......",".##.......",".##....##.","..######..",".........."],
+  R: ["..........",".#######..",".##....##.",".##....##.",".#######..",
+      ".##..##...",".##...##..",".##....##.",".##....##.",".........."],
+  "☺": ["..........","..##..##..","..##..##..","..........","..........",
+        ".#......#.",".##....##.","..######..","..........",".........."],
+  "▦": ["#.#.#.#.#.",".#.#.#.#.#","#.#.#.#.#.",".#.#.#.#.#","#.#.#.#.#.",
+        ".#.#.#.#.#","#.#.#.#.#.",".#.#.#.#.#","#.#.#.#.#.",".#.#.#.#.#"],
+};
+
+// --- Network ---
+let W = new Float64Array(N * N);
+let patterns = [];                       // stored patterns, each Int8Array of ±1
+let state = new Int8Array(N).fill(-1);
+
+let RULE = "pinv";   // "hebb" | "pinv"
+
+function trainWeights() {
+  W = new Float64Array(N * N);
+  if (!patterns.length) return;
+  if (RULE === "hebb") {
+    for (const p of patterns)
+      for (let i = 0; i < N; i++)
+        for (let j = i + 1; j < N; j++) {
+          const w = p[i] * p[j] / N;
+          W[i * N + j] += w;
+          W[j * N + i] += w;
+        }
+    return;
+  }
+  // Pseudo-inverse rule: W = (1/N) Σ_pq x^p (C⁻¹)_pq x^q — handles correlated patterns
+  const P = patterns.length;
+  const C = Array.from({ length: P }, (_, p) =>
+    Array.from({ length: P }, (_, q) => overlap(patterns[p], patterns[q]) + (p === q ? 1e-4 : 0)));
+  const Cinv = invert(C);
+  for (let p = 0; p < P; p++)
+    for (let q = 0; q < P; q++) {
+      const c = Cinv[p][q] / N;
+      for (let i = 0; i < N; i++)
+        for (let j = 0; j < N; j++)
+          if (i !== j) W[i * N + j] += c * patterns[p][i] * patterns[q][j];
+    }
+}
+
+// Gauss-Jordan inverse for the small P x P correlation matrix
+function invert(C) {
+  const P = C.length;
+  const A = C.map((row, i) => [...row, ...row.map((_, j) => i === j ? 1 : 0)]);
+  for (let col = 0; col < P; col++) {
+    let piv = col;
+    for (let r = col + 1; r < P; r++)
+      if (Math.abs(A[r][col]) > Math.abs(A[piv][col])) piv = r;
+    [A[col], A[piv]] = [A[piv], A[col]];
+    const d = A[col][col];
+    for (let j = 0; j < 2 * P; j++) A[col][j] /= d;
+    for (let r = 0; r < P; r++)
+      if (r !== col) {
+        const f = A[r][col];
+        for (let j = 0; j < 2 * P; j++) A[r][j] -= f * A[col][j];
+      }
+  }
+  return A.map(row => row.slice(P));
+}
+
+function localField(s, i) {
+  let h = 0;
+  const row = i * N;
+  for (let j = 0; j < N; j++) h += W[row + j] * s[j];
+  return h;
+}
+
+function energy(s) {
+  let e = 0;
+  for (let i = 0; i < N; i++) e -= 0.5 * localField(s, i) * s[i];
+  return e;
+}
+
+// One asynchronous sweep in random order; returns number of flips
+function sweep(s) {
+  const order = [...Array(N).keys()];
+  for (let i = N - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+  let flips = 0;
+  for (const i of order) {
+    const next = localField(s, i) >= 0 ? 1 : -1;
+    if (next !== s[i]) { s[i] = next; flips++; }
+  }
+  return flips;
+}
+
+function overlap(s, p) {
+  let m = 0;
+  for (let i = 0; i < N; i++) m += s[i] * p[i];
+  return m / N;
+}
+
+// --- Main grid UI ---
+const canvas = document.getElementById("gridCanvas");
+canvas.width = canvas.height = SIDE * CELL;
+const ctx = canvas.getContext("2d");
+
+function drawGrid() {
+  for (let r = 0; r < SIDE; r++)
+    for (let c = 0; c < SIDE; c++) {
+      ctx.fillStyle = state[r * SIDE + c] === 1 ? "#3ddc84" : "#1a1a1a";
+      ctx.fillRect(c * CELL + PAD, r * CELL + PAD, CELL - 2 * PAD, CELL - 2 * PAD);
+    }
+  updateOverlaps();
+}
+
+let painting = false, paintValue = 1;
+function cellAt(e) {
+  const rect = canvas.getBoundingClientRect();
+  const c = Math.floor((e.clientX - rect.left) / rect.width * SIDE);
+  const r = Math.floor((e.clientY - rect.top) / rect.height * SIDE);
+  return (r >= 0 && r < SIDE && c >= 0 && c < SIDE) ? r * SIDE + c : -1;
+}
+canvas.addEventListener("pointerdown", e => {
+  const i = cellAt(e); if (i < 0) return;
+  painting = true;
+  paintValue = state[i] === 1 ? -1 : 1;
+  state[i] = paintValue;
+  drawGrid();
+});
+canvas.addEventListener("pointermove", e => {
+  if (!painting) return;
+  const i = cellAt(e);
+  if (i >= 0 && state[i] !== paintValue) { state[i] = paintValue; drawGrid(); }
+});
+addEventListener("pointerup", () => painting = false);
+
+// --- Stored pattern thumbnails ---
+const storedDiv = document.getElementById("stored");
+function renderStored() {
+  storedDiv.innerHTML = "";
+  patterns.forEach((p, idx) => {
+    const box = document.createElement("div");
+    box.className = "thumb";
+    const tc = document.createElement("canvas");
+    tc.width = tc.height = SIDE * 5;
+    const t = tc.getContext("2d");
+    for (let i = 0; i < N; i++) {
+      t.fillStyle = p[i] === 1 ? "#3ddc84" : "#1a1a1a";
+      t.fillRect((i % SIDE) * 5, Math.floor(i / SIDE) * 5, 4, 4);
+    }
+    tc.title = "click to load into the grid";
+    tc.onclick = () => { state = Int8Array.from(p); drawGrid(); setStatus("loaded stored pattern " + (idx + 1)); };
+    const del = document.createElement("button");
+    del.className = "del"; del.textContent = "×"; del.title = "forget this pattern";
+    del.onclick = () => { patterns.splice(idx, 1); trainWeights(); renderStored(); drawGrid(); };
+    const ov = document.createElement("div");
+    ov.className = "overlap";
+    ov.innerHTML = "<div></div>";
+    box.append(tc, del, ov);
+    storedDiv.appendChild(box);
+  });
+  const cap = RULE === "hebb" ? Math.round(0.138 * N) : N / 2;
+  document.getElementById("capNote").textContent =
+    patterns.length ? `(${patterns.length} stored — theoretical capacity ≈ ${cap})` : "(none yet)";
+  document.getElementById("recall").disabled = patterns.length === 0;
+  updateOverlaps();
+}
+
+function updateOverlaps() {
+  const bars = storedDiv.querySelectorAll(".overlap div");
+  patterns.forEach((p, i) => {
+    if (bars[i]) bars[i].style.width = (Math.max(0, overlap(state, p)) * 100).toFixed(0) + "%";
+  });
+}
+
+// --- Energy plot ---
+const eCanvas = document.getElementById("energyCanvas");
+const eCtx = eCanvas.getContext("2d");
+let energyTrace = [];
+function drawEnergy() {
+  eCtx.fillStyle = "#111";
+  eCtx.fillRect(0, 0, eCanvas.width, eCanvas.height);
+  if (energyTrace.length < 2) return;
+  const min = Math.min(...energyTrace), max = Math.max(...energyTrace);
+  const span = (max - min) || 1;
+  eCtx.strokeStyle = "#3ddc84";
+  eCtx.lineWidth = 2;
+  eCtx.beginPath();
+  energyTrace.forEach((e, i) => {
+    const x = 8 + i / (energyTrace.length - 1) * (eCanvas.width - 16);
+    const y = 10 + (e - min) / span * (eCanvas.height - 20);
+    i ? eCtx.lineTo(x, y) : eCtx.moveTo(x, y);
+  });
+  eCtx.stroke();
+  eCtx.fillStyle = "#888";
+  eCtx.font = "11px ui-monospace, Menlo, monospace";
+  eCtx.fillText("E = " + energyTrace[energyTrace.length - 1].toFixed(1), 10, 14);
+}
+
+// --- Recall animation ---
+let recalling = false;
+const setStatus = t => document.getElementById("status").textContent = t;
+
+function recall() {
+  if (recalling || !patterns.length) return;
+  recalling = true;
+  energyTrace = [energy(state)];
+  let sweeps = 0;
+  setStatus("settling…");
+  const stepFrame = () => {
+    const flips = sweep(state);
+    sweeps++;
+    energyTrace.push(energy(state));
+    drawGrid(); drawEnergy();
+    if (flips > 0 && sweeps < 50) {
+      setTimeout(stepFrame, 220);
+    } else {
+      recalling = false;
+      const ms = patterns.map(p => overlap(state, p));
+      const best = Math.max(...ms.map(Math.abs));
+      const which = ms.findIndex(m => Math.abs(m) === best);
+      if (best > 0.95)
+        setStatus(`settled in ${sweeps} sweep${sweeps>1?"s":""} → memory ${which + 1}` +
+                  (ms[which] < 0 ? " (inverted!)" : ""));
+      else
+        setStatus(`settled in ${sweeps} sweeps → spurious state (closest: memory ${which + 1}, ${(best*100).toFixed(0)}%)`);
+    }
+  };
+  stepFrame();
+}
+
+// --- Corruption ---
+function corrupt() {
+  const frac = document.getElementById("noise").value / 100;
+  for (let i = 0; i < N; i++) if (Math.random() < frac) state[i] = -state[i];
+  drawGrid(); setStatus("noise added");
+}
+function eraseHalf() {
+  for (let i = N >> 1; i < N; i++) state[i] = -1;
+  drawGrid(); setStatus("bottom half erased");
+}
+
+// --- Wiring ---
+document.getElementById("store").onclick = () => {
+  patterns.push(Int8Array.from(state));
+  trainWeights(); renderStored();
+  setStatus("pattern stored (Hebbian update)");
+};
+document.getElementById("clearGrid").onclick = () => { state.fill(-1); drawGrid(); setStatus(""); };
+document.getElementById("corrupt").onclick = corrupt;
+document.getElementById("erase").onclick = eraseHalf;
+document.getElementById("recall").onclick = recall;
+const noiseSlider = document.getElementById("noise");
+noiseSlider.oninput = () => document.getElementById("noiseVal").textContent = noiseSlider.value + "%";
+for (const radio of document.querySelectorAll('input[name="rule"]'))
+  radio.onchange = () => {
+    RULE = radio.value;
+    trainWeights(); renderStored();
+    setStatus(`retrained with ${RULE === "hebb" ? "Hebbian" : "pseudo-inverse"} rule`);
+  };
+
+const presetSpan = document.getElementById("presets");
+for (const [name, rows] of Object.entries(PRESETS)) {
+  const b = document.createElement("button");
+  b.textContent = name;
+  b.onclick = () => {
+    for (let r = 0; r < SIDE; r++)
+      for (let c = 0; c < SIDE; c++)
+        state[r * SIDE + c] = rows[r][c] === "#" ? 1 : -1;
+    drawGrid(); setStatus(`preset "${name}" loaded — store it, or corrupt and recall`);
+  };
+  presetSpan.appendChild(b);
+}
+
+renderStored();
+drawGrid();
+drawEnergy();
+setStatus("draw a pattern or load a preset, then store it");
+</script>
+</body>
+</html>

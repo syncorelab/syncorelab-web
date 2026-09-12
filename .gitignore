@@ -1,0 +1,23 @@
+# macOS
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+desktop.ini
+
+# Backups und Archive gehoeren nicht ins Repo (dafuer ist die Git-Historie da)
+backups/
+*.tar.gz
+*.zip
+
+# Entwuerfe: gehoeren in einen eigenen Branch, nicht in den Deploy-Ordner
+v2/
+redesign/
+
+# Editor
+.vscode/
+.idea/
+*.swp

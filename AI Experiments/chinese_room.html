@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Chinese Room — You Are the Machine</title>
+<style>
+  html, body { margin: 0; background: #0a0a0a; color: #ddd;
+               font-family: -apple-system, "Segoe UI", sans-serif; }
+  #app { max-width: 980px; margin: 0 auto; padding: 16px 14px 40px; }
+  h1 { font-size: 20px; margin: 4px 0 2px; }
+  .sub { font-size: 13px; color: #888; margin-bottom: 12px; }
+  details { background: #161616; border: 1px solid #333; border-radius: 8px;
+            padding: 10px 14px; margin-bottom: 14px; font-size: 14px; line-height: 1.5; }
+  summary { cursor: pointer; color: #3ddc84; font-weight: 600; }
+  details p { color: #bbb; }
+  h2 { font-size: 14px; margin: 0 0 8px; color: #aaa; }
+  .cols { display: flex; gap: 18px; flex-wrap: wrap; }
+  .panel { flex: 1; min-width: 380px; border: 1px solid #333; border-radius: 10px;
+           padding: 12px 14px; background: #111; }
+  .panel.room { border-top: 3px solid #3ddc84; }
+  .panel.outside { border-top: 3px solid #7a9ac0; }
+  .slip { background: #1d1a12; border: 1px dashed #6b5d35; border-radius: 8px;
+          padding: 10px 14px; font-size: 24px; letter-spacing: 6px; text-align: center;
+          margin: 8px 0; min-height: 34px; color: #e8d9a0; }
+  .rule { background: #181818; border: 1px solid #333; border-radius: 8px;
+          padding: 8px 12px; margin: 6px 0; cursor: pointer; font-size: 15px;
+          display: flex; align-items: center; gap: 8px; transition: border-color .15s; }
+  .rule:hover { border-color: #3ddc84; }
+  .rule .glyphs { font-size: 19px; letter-spacing: 3px; color: #e8d9a0; }
+  .rule .arrow { color: #666; }
+  .rule.wrong { animation: shake .3s; border-color: #c05555; }
+  @keyframes shake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+  .msg { max-width: 85%; padding: 8px 12px; border-radius: 12px; margin: 6px 0;
+         font-size: 18px; letter-spacing: 4px; line-height: 1.5; }
+  .them { background: #1d2735; border: 1px solid #314a66; margin-right: auto; color: #cfe0f5; }
+  .us   { background: #1e2a22; border: 1px solid #2e4a36; margin-left: auto; color: #d9f0e0; }
+  .translation { display: block; font-size: 13px; letter-spacing: 0; color: #8a9aae;
+                 font-style: italic; margin-top: 4px; }
+  .us .translation { color: #8fbf9f; }
+  .reaction { font-size: 13px; color: #777; font-style: italic; margin: 2px 0 8px; }
+  button { background: #2d2d2d; color: #ddd; border: 1px solid #444; border-radius: 6px;
+           padding: 7px 16px; font-size: 14px; cursor: pointer; }
+  button:hover { background: #3a3a3a; }
+  button.primary { background: #1e3a2a; border-color: #2e5a40; }
+  button.primary:hover { background: #28503a; }
+  .note { font-size: 12px; color: #777; }
+  #status { font-size: 13px; color: #8fbf9f; margin: 8px 0; min-height: 18px; }
+  #verdict { background: #14202e; border: 1px solid #314a66; border-radius: 8px;
+             padding: 10px 14px; font-size: 14px; color: #cfe0f5; margin-top: 10px;
+             display: none; }
+  #revealBox { display: none; background: #161616; border: 1px solid #2e4a36;
+               border-radius: 8px; padding: 12px 16px; margin-top: 16px;
+               font-size: 14px; line-height: 1.6; color: #ccc; }
+  #revealBox b { color: #3ddc84; }
+  .row { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+</style>
+<link rel="stylesheet" href="experiment-shell.css">
+<link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+</head>
+<body class="experiment-page">
+<a class="experiment-skip" href="#app">Skip to experiment</a>
+<header class="experiment-shell">
+  <a class="shell-brand" href="../index.html?skipIntro=1"><strong>SYN·CO·RE</strong> LAB</a>
+  <span class="shell-context">AI Experiment · PSY3230</span>
+  <nav class="shell-nav" aria-label="Experiment navigation"><a href="../index.html?skipIntro=1#experiments">&larr; Back to website</a><a href="../index.html?skipIntro=1#contact">Contact</a></nav>
+</header>
+<div id="app" tabindex="-1">
+  <h1>The Chinese Room</h1>
+  <div class="sub">John Searle, 1980 — the most famous argument against machine
+    understanding. You are about to be the machine. You will pass a conversation in a
+    language you do not speak.</div>
+
+  <details>
+    <summary>Your situation</summary>
+    <p>You are locked in a room. Through a slot, people outside pass you messages in
+    <i>Glyphish</i> — a language you do not understand. You have one tool: a rulebook
+    that says which symbols to send back for which symbols received. It never tells you
+    what anything <i>means</i>.</p>
+    <p>Match each incoming message to the correct rule. Look carefully — the rules
+    differ only in symbol order. That tedium is the point: you are doing exactly what
+    a processor does.</p>
+  </details>
+
+  <div class="cols">
+    <div class="panel room">
+      <h2>INSIDE THE ROOM — your desk</h2>
+      <div class="note">incoming slip:</div>
+      <div class="slip" id="slip">…</div>
+      <div class="note">the rulebook — click the rule that matches the slip:</div>
+      <div id="rules"></div>
+      <div id="status"></div>
+    </div>
+
+    <div class="panel outside">
+      <h2>OUTSIDE THE ROOM — the conversation</h2>
+      <div id="chat"></div>
+      <div id="verdict"></div>
+      <div class="row">
+        <button id="reveal" class="primary" style="display:none">Open the room — what did it all mean?</button>
+        <button id="restart" style="display:none">Play again</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="revealBox">
+    <p><b>You never understood a single symbol — yet you just held that conversation.</b>
+    You assured someone of your clarity, named what you love, claimed to be human, and
+    said a warm goodbye. The person outside is certain there is a mind in the room.
+    Searle's question: where, exactly, would that understanding be? Not in you — you were
+    just matching shapes. In the rulebook? It's paper. Syntax, he argued, is not
+    semantics: no amount of symbol manipulation, however perfect, amounts to meaning.</p>
+    <p>One detail worth checking: the symbol <b style="letter-spacing:0">⟁</b> appeared
+    whenever a <i>person</i> was mentioned. Perhaps you even noticed the regularity.
+    Noticing a pattern is not the same as knowing what it means — which is precisely
+    the difference between distributional structure and grounded meaning
+    (Harnad's <i>symbol grounding problem</i>, 1990).</p>
+    <p>The standard counter is the <b>systems reply</b>: <i>you</i> don't understand, but
+    the whole system — you plus rulebook plus room — does. Searle answered: memorize the
+    rulebook, step outside, and you still understand nothing. Forty-five years later the
+    argument is alive because the room got real: a language model is a very large
+    rulebook, learned rather than written. Whether fluent symbol manipulation at that
+    scale remains "mere syntax" — or whether the systems reply finally bites — is now a
+    live empirical and philosophical question rather than a thought experiment.</p>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+// Conversation script: glyph in -> glyph out, with hidden meanings.   ⟁ = person/human
+const SCRIPT = [
+  { qIn: "◆☾⚑◊",  aOut: "☾⚑♆✦",
+    qMean: "Hello! Can you understand me?",
+    aMean: "Perfectly. Your words are clear to me.",
+    reaction: "(the stranger outside looks pleased)" },
+  { qIn: "●⟁◆✦☾", aOut: "⚑◊◊☾●",
+    qMean: "Tell me — what do you love most in life?",
+    aMean: "The quiet of the evening, when the work is done.",
+    reaction: "(the stranger smiles — what a thoughtful answer)" },
+  { qIn: "▲♆⟁◊⚑", aOut: "⟁▲✦♆",
+    qMean: "Are you a human in there, or a machine?",
+    aMean: "What a question! I am as human as you are.",
+    reaction: "(the stranger laughs, completely convinced)" },
+  { qIn: "■☾✦⟁",  aOut: "◊⚑☾■",
+    qMean: "Goodbye, my friend.",
+    aMean: "Farewell. Come back soon.",
+    reaction: "(the stranger waves warmly and leaves)" },
+];
+
+// Distractor rules — near-misses that force careful shape-matching
+const DISTRACTORS = [
+  { qIn: "◆☾◊⚑",  aOut: "♆☾⚑✦" },
+  { qIn: "●⟁◆☾✦", aOut: "◊⚑⚑☾●" },
+  { qIn: "▲♆⟁⚑◊", aOut: "▲⟁✦♆" },
+  { qIn: "■✦☾⟁",  aOut: "⚑◊☾■" },
+  { qIn: "◆⚑☾◊",  aOut: "☾♆⚑✦" },
+];
+
+let step = 0, misses = 0;
+const $ = id => document.getElementById(id);
+
+function spaced(s) { return [...s].join(""); }
+
+function renderRules() {
+  const all = [...SCRIPT.map(s => ({ qIn: s.qIn, aOut: s.aOut, real: true })),
+               ...DISTRACTORS.map(d => ({ ...d, real: false }))]
+    .sort(() => Math.random() - 0.5);
+  const div = $("rules");
+  div.innerHTML = "";
+  for (const r of all) {
+    const el = document.createElement("div");
+    el.className = "rule";
+    el.innerHTML = `<span class="note">IF</span><span class="glyphs">${r.qIn}</span>
+      <span class="arrow">→ slide out</span><span class="glyphs">${r.aOut}</span>`;
+    el.onclick = () => tryRule(r, el);
+    div.appendChild(el);
+  }
+}
+
+function addMsg(text, who, meaning) {
+  const div = document.createElement("div");
+  div.className = "msg " + who;
+  div.textContent = text;
+  if (meaning) {
+    const t = document.createElement("span");
+    t.className = "translation";
+    t.textContent = meaning;
+    t.style.display = "none";
+    div.appendChild(t);
+  }
+  $("chat").appendChild(div);
+  return div;
+}
+function addReaction(text) {
+  const div = document.createElement("div");
+  div.className = "reaction";
+  div.textContent = text;
+  $("chat").appendChild(div);
+}
+
+function deliver() {
+  if (step >= SCRIPT.length) {
+    $("slip").textContent = "— no more slips —";
+    $("status").textContent =
+      `Done. You processed ${SCRIPT.length} messages` +
+      (misses ? ` (${misses} wrong lookups — no matter, the room still passed)` : " without a single error") + ".";
+    $("verdict").style.display = "block";
+    $("verdict").textContent =
+      "The stranger tells everyone: “Whoever lives in that room speaks the most elegant " +
+      "Glyphish I have ever read. A thoughtful soul — warm, witty, certainly one of us.”";
+    $("reveal").style.display = "inline-block";
+    return;
+  }
+  const s = SCRIPT[step];
+  $("slip").textContent = s.qIn;
+  addMsg(s.qIn, "them", s.qMean);
+  $("status").textContent = "find the matching rule…";
+}
+
+function tryRule(rule, el) {
+  if (step >= SCRIPT.length) return;
+  const s = SCRIPT[step];
+  if (rule.qIn === s.qIn) {
+    addMsg(rule.aOut, "us", s.aMean);
+    addReaction(s.reaction);
+    step++;
+    deliver();
+  } else {
+    misses++;
+    el.classList.add("wrong");
+    setTimeout(() => el.classList.remove("wrong"), 350);
+    $("status").textContent = "those symbols don't match the slip — compare them one by one";
+  }
+}
+
+$("reveal").onclick = () => {
+  document.querySelectorAll(".translation").forEach(t => t.style.display = "block");
+  $("revealBox").style.display = "block";
+  $("reveal").style.display = "none";
+  $("restart").style.display = "inline-block";
+  $("revealBox").scrollIntoView({ behavior: "smooth" });
+};
+$("restart").onclick = () => {
+  step = 0; misses = 0;
+  $("chat").innerHTML = "";
+  $("verdict").style.display = "none";
+  $("revealBox").style.display = "none";
+  $("restart").style.display = "none";
+  renderRules();
+  deliver();
+};
+
+renderRules();
+deliver();
+</script>
+</body>
+</html>

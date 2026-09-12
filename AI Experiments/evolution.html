@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Evolutionary Robotics — Breeding Behavior</title>
+<style>
+  html, body { margin: 0; background: #0a0a0a; color: #ddd;
+               font-family: -apple-system, "Segoe UI", sans-serif; }
+  #app { max-width: 980px; margin: 0 auto; padding: 16px 14px 40px; }
+  h1 { font-size: 20px; margin: 4px 0 2px; }
+  .sub { font-size: 13px; color: #888; margin-bottom: 12px; }
+  details { background: #161616; border: 1px solid #333; border-radius: 8px;
+            padding: 10px 14px; margin-bottom: 14px; font-size: 14px; line-height: 1.5; }
+  summary { cursor: pointer; color: #3ddc84; font-weight: 600; }
+  details p { color: #bbb; }
+  h2 { font-size: 14px; margin: 14px 0 6px; color: #aaa; }
+  .cols { display: flex; gap: 22px; flex-wrap: wrap; align-items: flex-start; }
+  canvas { border: 1px solid #333; border-radius: 6px; background: #101010; }
+  button { background: #2d2d2d; color: #ddd; border: 1px solid #444; border-radius: 6px;
+           padding: 6px 14px; font-size: 13px; cursor: pointer; }
+  button:hover { background: #3a3a3a; }
+  button.primary { background: #1e3a2a; border-color: #2e5a40; }
+  button.primary:hover { background: #28503a; }
+  .row { display: flex; align-items: center; gap: 10px; margin: 8px 0; flex-wrap: wrap; }
+  .note { font-size: 12px; color: #777; }
+  label.opt { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #aaa; }
+  input[type=range] { width: 110px; }
+  .val { font-size: 13px; color: #aaa; min-width: 42px; font-variant-numeric: tabular-nums; }
+  #stats { font-size: 13px; color: #8fbf9f; font-family: ui-monospace, Menlo, monospace;
+           white-space: pre; line-height: 1.6; margin-top: 6px; }
+</style>
+<link rel="stylesheet" href="experiment-shell.css">
+<link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+</head>
+<body class="experiment-page">
+<a class="experiment-skip" href="#app">Skip to experiment</a>
+<header class="experiment-shell">
+  <a class="shell-brand" href="../index.html?skipIntro=1"><strong>SYN·CO·RE</strong> LAB</a>
+  <span class="shell-context">AI Experiment · PSY3230</span>
+  <nav class="shell-nav" aria-label="Experiment navigation"><a href="../index.html?skipIntro=1#experiments">&larr; Back to website</a><a href="../index.html?skipIntro=1#contact">Contact</a></nav>
+</header>
+<div id="app" tabindex="-1">
+  <h1>Evolutionary Robotics</h1>
+  <div class="sub">Nobody programs these robots. A population of random nervous systems is
+    bred — the ones that find food reproduce, with mutation. Behavior that looks like
+    appetite, pursuit, even foraging strategy emerges from selection alone.</div>
+
+  <details>
+    <summary>What is happening here?</summary>
+    <p>Each robot is a <b>Braitenberg vehicle</b>: two light sensors (whiskers), two
+    wheels, and between them a tiny neural controller — six numbers deciding how strongly
+    each sensor excites or inhibits each wheel. Those six numbers are its <b>genome</b>.
+    Generation zero is pure noise: robots spin, tremble, drive into walls. Every
+    20 simulated seconds, the robots that ate the most food are selected, their genomes
+    recombined and mutated, and a new generation starts. Watch coordinated
+    food-seeking appear within a dozen generations — typically a crossed
+    excitatory wiring, exactly the circuit Braitenberg drew for the vehicle he named
+    "aggression". You can inspect the champion's brain on the right while it evolves.</p>
+    <p>Valentino Braitenberg called this <i>synthetic psychology</i>: his point was that
+    observers cannot resist describing such trivial circuits as wanting, fearing,
+    loving — psychology's attribution problem in its purest form. Evolutionary robotics
+    (Floreano, Nolfi) adds the second lesson: design by selection rather than by
+    intention. The "design" lives in the fitness function, and the solutions are often
+    not what an engineer would have written — they merely work.</p>
+    <p>Experiments: raise the mutation rate to 100% and watch evolution dissolve into
+    drift; set it to zero after a few generations and watch the population converge and
+    stagnate. Selection needs variation — but not too much.</p>
+  </details>
+
+  <div class="cols">
+    <div>
+      <canvas id="arena" width="560" height="420"></canvas>
+      <div class="row">
+        <button id="run" class="primary">Start evolution</button>
+        <button id="restart">Restart (new random genomes)</button>
+      </div>
+      <div class="row">
+        <label class="opt">speed
+          <input type="range" id="speed" min="0" max="100" value="35">
+          <span class="val" id="speedVal"></span></label>
+        <label class="opt">mutation
+          <input type="range" id="mut" min="0" max="100" value="20">
+          <span class="val" id="mutVal"></span></label>
+      </div>
+      <div id="stats"></div>
+    </div>
+    <div>
+      <h2>Champion's brain (best robot, highlighted in the arena)</h2>
+      <canvas id="brain" width="300" height="190"></canvas>
+      <h2>Fitness over generations <span class="note">(green: best, grey: average)</span></h2>
+      <canvas id="curve" width="300" height="120"></canvas>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+// --- Evo core ---
+const AW = 560, AH = 420;
+const POP = 24, GENES = 6, FOODS = 9;
+const DT = 1 / 30, GEN_TICKS = 600;            // 20 simulated seconds per generation
+const SENSOR_ANGLE = 0.5, MAX_SPEED = 95, WHEEL_BASE = 16;
+const EAT_R = 13, ELITE = 2, SIGMA = 0.5;
+
+let robots, foods, generation, tick, history;
+
+const rnd = (a, b) => a + Math.random() * (b - a);
+const gauss = () => (Math.random() + Math.random() + Math.random()) * 2 - 3;
+
+function newRobot(genome) {
+  return { g: genome ?? Float64Array.from({ length: GENES }, () => rnd(-2, 2)),
+           x: rnd(40, AW - 40), y: rnd(40, AH - 40), h: rnd(0, Math.PI * 2),
+           fit: 0, sL: 0, sR: 0 };
+}
+function newFood() { return { x: rnd(25, AW - 25), y: rnd(25, AH - 25) }; }
+
+function init() {
+  robots = Array.from({ length: POP }, () => newRobot());
+  foods = Array.from({ length: FOODS }, newFood);
+  generation = 0; tick = 0; history = [];
+}
+
+function sense(r) {
+  let sL = 0, sR = 0;
+  for (const f of foods) {
+    const dx = f.x - r.x, dy = f.y - r.y;
+    const d2 = dx * dx + dy * dy;
+    const ang = Math.atan2(dy, dx);
+    const gain = 9000 / (400 + d2);
+    let aL = ang - (r.h - SENSOR_ANGLE);
+    let aR = ang - (r.h + SENSOR_ANGLE);
+    aL = Math.atan2(Math.sin(aL), Math.cos(aL));
+    aR = Math.atan2(Math.sin(aR), Math.cos(aR));
+    if (Math.abs(aL) < Math.PI / 2) sL += gain * Math.cos(aL);
+    if (Math.abs(aR) < Math.PI / 2) sR += gain * Math.cos(aR);
+  }
+  r.sL = sL; r.sR = sR;
+}
+
+function step(r) {
+  sense(r);
+  const g = r.g;
+  const vL = Math.tanh(g[0] * r.sL + g[1] * r.sR + g[2]) * MAX_SPEED;
+  const vR = Math.tanh(g[3] * r.sL + g[4] * r.sR + g[5]) * MAX_SPEED;
+  r.h += (vR - vL) / WHEEL_BASE * DT;
+  const v = (vL + vR) / 2;
+  r.x += Math.cos(r.h) * v * DT;
+  r.y += Math.sin(r.h) * v * DT;
+  // walls: clamp + bounce heading
+  if (r.x < 12) { r.x = 12; r.h = Math.PI - r.h; }
+  if (r.x > AW - 12) { r.x = AW - 12; r.h = Math.PI - r.h; }
+  if (r.y < 12) { r.y = 12; r.h = -r.h; }
+  if (r.y > AH - 12) { r.y = AH - 12; r.h = -r.h; }
+  // eat
+  for (const f of foods) {
+    const dx = f.x - r.x, dy = f.y - r.y;
+    if (dx * dx + dy * dy < EAT_R * EAT_R) {
+      r.fit++;
+      Object.assign(f, newFood());
+    }
+  }
+}
+
+function evolve(mutRate) {
+  const sorted = [...robots].sort((a, b) => b.fit - a.fit);
+  history.push({ best: sorted[0].fit, mean: robots.reduce((s, r) => s + r.fit, 0) / POP });
+  if (history.length > 300) history.shift();
+
+  const pick = () => {     // tournament of 3
+    let best = robots[Math.floor(Math.random() * POP)];
+    for (let i = 0; i < 2; i++) {
+      const c = robots[Math.floor(Math.random() * POP)];
+      if (c.fit > best.fit) best = c;
+    }
+    return best.g;
+  };
+  const next = [];
+  for (let i = 0; i < ELITE; i++) next.push(newRobot(Float64Array.from(sorted[i].g)));
+  while (next.length < POP) {
+    const a = pick(), b = pick();
+    const child = Float64Array.from({ length: GENES },
+      (_, k) => Math.random() < 0.5 ? a[k] : b[k]);
+    for (let k = 0; k < GENES; k++)
+      if (Math.random() < mutRate) child[k] += gauss() * SIGMA;
+    next.push(newRobot(child));
+  }
+  robots = next;
+  foods = Array.from({ length: FOODS }, newFood);
+  generation++;
+  tick = 0;
+}
+
+// One simulation tick for the whole population; evolves when the generation ends
+function simTick(mutRate) {
+  for (const r of robots) step(r);
+  if (++tick >= GEN_TICKS) evolve(mutRate);
+}
+// --- end core ---
+
+// --- Arena drawing ---
+const arena = document.getElementById("arena");
+const actx = arena.getContext("2d");
+function drawArena() {
+  actx.fillStyle = "#101010";
+  actx.fillRect(0, 0, AW, AH);
+  actx.fillStyle = "#e8c84a";
+  for (const f of foods) {
+    actx.beginPath(); actx.arc(f.x, f.y, 5, 0, 7); actx.fill();
+  }
+  const bestFit = Math.max(...robots.map(r => r.fit));
+  for (const r of robots) {
+    const isBest = r.fit === bestFit && bestFit > 0;
+    // sensor whiskers
+    actx.strokeStyle = "rgba(150,150,150,.35)";
+    actx.lineWidth = 1;
+    for (const sa of [-SENSOR_ANGLE, SENSOR_ANGLE]) {
+      actx.beginPath();
+      actx.moveTo(r.x, r.y);
+      actx.lineTo(r.x + Math.cos(r.h + sa) * 16, r.y + Math.sin(r.h + sa) * 16);
+      actx.stroke();
+    }
+    actx.fillStyle = isBest ? "#3ddc84" : "#6a7d8f";
+    actx.beginPath(); actx.arc(r.x, r.y, 7, 0, 7); actx.fill();
+    actx.strokeStyle = "#0a0a0a"; actx.lineWidth = 2;
+    actx.beginPath();
+    actx.moveTo(r.x, r.y);
+    actx.lineTo(r.x + Math.cos(r.h) * 9, r.y + Math.sin(r.h) * 9);
+    actx.stroke();
+  }
+}
+
+// --- Champion brain diagram ---
+const brain = document.getElementById("brain");
+const bctx = brain.getContext("2d");
+function drawBrain() {
+  bctx.fillStyle = "#0f0f0f"; bctx.fillRect(0, 0, brain.width, brain.height);
+  const champ = robots.reduce((a, b) => b.fit > a.fit ? b : a);
+  const g = champ.g;
+  const nodes = {
+    sL: [60, 50], sR: [60, 140],
+    wL: [240, 50], wR: [240, 140],
+  };
+  // connections: g0 sL->wL, g1 sR->wL, g3 sL->wR, g4 sR->wR
+  const conns = [
+    ["sL", "wL", g[0]], ["sR", "wL", g[1]],
+    ["sL", "wR", g[3]], ["sR", "wR", g[4]],
+  ];
+  const maxW = Math.max(0.3, ...conns.map(c => Math.abs(c[2])));
+  for (const [from, to, w] of conns) {
+    const mag = Math.abs(w) / maxW;
+    bctx.strokeStyle = w > 0 ? `rgba(61,220,132,${0.25 + 0.7 * mag})`
+                             : `rgba(224,85,85,${0.25 + 0.7 * mag})`;
+    bctx.lineWidth = 0.5 + 5 * mag;
+    bctx.beginPath();
+    bctx.moveTo(nodes[from][0] + 16, nodes[from][1]);
+    bctx.lineTo(nodes[to][0] - 16, nodes[to][1]);
+    bctx.stroke();
+  }
+  bctx.font = "12px sans-serif"; bctx.textAlign = "center"; bctx.textBaseline = "middle";
+  for (const [name, [x, y]] of Object.entries(nodes)) {
+    bctx.fillStyle = "#1c1c1c"; bctx.strokeStyle = "#555"; bctx.lineWidth = 1.5;
+    bctx.beginPath(); bctx.arc(x, y, 16, 0, 7); bctx.fill(); bctx.stroke();
+    bctx.fillStyle = "#ddd";
+    bctx.fillText(name === "sL" ? "👁L" : name === "sR" ? "👁R" : name === "wL" ? "⚙L" : "⚙R", x, y + 1);
+  }
+  bctx.fillStyle = "#888"; bctx.textAlign = "left";
+  bctx.fillText("sensors", 30, 178);
+  bctx.fillText("wheels", 220, 178);
+  bctx.fillText(`biases: L ${g[2].toFixed(2)}  R ${g[5].toFixed(2)}`, 30, 16);
+}
+
+// --- Fitness curve ---
+const curve = document.getElementById("curve");
+const cctx = curve.getContext("2d");
+function drawCurve() {
+  cctx.fillStyle = "#111"; cctx.fillRect(0, 0, curve.width, curve.height);
+  if (history.length < 2) return;
+  const max = Math.max(1, ...history.map(h => h.best));
+  const plot = (key, color) => {
+    cctx.strokeStyle = color; cctx.lineWidth = 1.5;
+    cctx.beginPath();
+    history.forEach((h, i) => {
+      const x = 6 + i / (history.length - 1) * (curve.width - 12);
+      const y = curve.height - 8 - h[key] / max * (curve.height - 16);
+      i ? cctx.lineTo(x, y) : cctx.moveTo(x, y);
+    });
+    cctx.stroke();
+  };
+  plot("mean", "#666");
+  plot("best", "#3ddc84");
+}
+
+// --- UI ---
+const $ = id => document.getElementById(id);
+const ticksPerFrame = () => Math.round(Math.pow(10, $("speed").value / 100 * 2.3)); // 1..200
+const getMut = () => $("mut").value / 100;
+function showVals() {
+  $("speedVal").textContent = "×" + ticksPerFrame();
+  $("mutVal").textContent = (getMut() * 100).toFixed(0) + "%";
+}
+$("speed").oninput = showVals;
+$("mut").oninput = showVals;
+
+function drawAll() {
+  drawArena(); drawBrain(); drawCurve();
+  const best = Math.max(...robots.map(r => r.fit));
+  const mean = robots.reduce((s, r) => s + r.fit, 0) / POP;
+  $("stats").textContent =
+    `generation ${generation}   (${Math.round(tick / GEN_TICKS * 100)}% through evaluation)\n` +
+    `food eaten this generation: best ${best}, average ${mean.toFixed(1)}` +
+    (history.length ? `\nlast generation: best ${history[history.length-1].best}, average ${history[history.length-1].mean.toFixed(1)}` : "");
+}
+
+let running = false;
+function loop() {
+  if (!running) return;
+  const n = ticksPerFrame();
+  for (let i = 0; i < n; i++) simTick(getMut());
+  drawAll();
+  requestAnimationFrame(loop);
+}
+$("run").onclick = () => {
+  running = !running;
+  $("run").textContent = running ? "Pause" : "Start evolution";
+  if (running) requestAnimationFrame(loop);
+};
+$("restart").onclick = () => { init(); drawAll(); };
+
+init();
+showVals();
+drawAll();
+</script>
+</body>
+</html>

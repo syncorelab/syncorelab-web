@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Evolving Walkers — Creatures That Learn to Move</title>
+<style>
+  html, body { margin: 0; background: #0a0a0a; color: #ddd;
+               font-family: -apple-system, "Segoe UI", sans-serif; }
+  #app { max-width: 1000px; margin: 0 auto; padding: 16px 14px 40px; }
+  h1 { font-size: 20px; margin: 4px 0 2px; }
+  .sub { font-size: 13px; color: #888; margin-bottom: 12px; }
+  details { background: #161616; border: 1px solid #333; border-radius: 8px;
+            padding: 10px 14px; margin-bottom: 14px; font-size: 14px; line-height: 1.5; }
+  summary { cursor: pointer; color: #3ddc84; font-weight: 600; }
+  details p { color: #bbb; }
+  h2 { font-size: 14px; margin: 14px 0 6px; color: #aaa; }
+  canvas { border: 1px solid #333; border-radius: 6px; background: #0e0e12; display: block; }
+  #stage { background: linear-gradient(#0e1018, #0e0e12 60%, #14130e); }
+  button { background: #2d2d2d; color: #ddd; border: 1px solid #444; border-radius: 6px;
+           padding: 6px 13px; font-size: 13px; cursor: pointer; }
+  button:hover { background: #3a3a3a; }
+  button.primary { background: #1e3a2a; border-color: #2e5a40; }
+  button.primary:hover { background: #28503a; }
+  button.on { background: #1e3a2a; border-color: #3ddc84; }
+  button:disabled { opacity: .4; cursor: default; }
+  .row { display: flex; align-items: center; gap: 8px; margin: 8px 0; flex-wrap: wrap; }
+  .note { font-size: 12px; color: #777; }
+  label.opt { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #aaa; }
+  input[type=range] { width: 100px; }
+  .val { font-size: 13px; color: #aaa; min-width: 40px; font-variant-numeric: tabular-nums; }
+  #stats { font-size: 13px; color: #8fbf9f; font-family: ui-monospace, Menlo, monospace;
+           white-space: pre; line-height: 1.6; margin-top: 6px; }
+  #curve { border: 1px solid #333; border-radius: 6px; background: #111; }
+  .cols { display: flex; gap: 18px; flex-wrap: wrap; align-items: flex-start; }
+  .legend { font-size: 12px; color: #999; }
+  .sw { display: inline-block; width: 12px; height: 3px; vertical-align: middle; margin: 0 3px 0 8px; }
+</style>
+<link rel="stylesheet" href="experiment-shell.css">
+<link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+</head>
+<body class="experiment-page">
+<a class="experiment-skip" href="#app">Skip to experiment</a>
+<header class="experiment-shell">
+  <a class="shell-brand" href="../index.html?skipIntro=1"><strong>SYN·CO·RE</strong> LAB</a>
+  <span class="shell-context">AI Experiment · PSY3230</span>
+  <nav class="shell-nav" aria-label="Experiment navigation"><a href="../index.html?skipIntro=1#experiments">&larr; Back to website</a><a href="../index.html?skipIntro=1#contact">Contact</a></nav>
+</header>
+<div id="app" tabindex="-1">
+  <h1>Evolving Walkers</h1>
+  <div class="sub">Build a creature from nodes and bones, mark some bones as muscles, and
+    let evolution discover a gait. Nobody tells it how to walk — walking is whatever
+    travels furthest.</div>
+
+  <details>
+    <summary>What is happening here?</summary>
+    <p>Your creature is a stick figure of point masses (<b>nodes</b>) joined by rigid
+    <b>bones</b>. Some bones are <b>muscles</b>: they rhythmically lengthen and shorten.
+    Each muscle has three evolved numbers — how far it stretches, how fast, and its phase
+    offset — together a little <b>central pattern generator</b>, the same kind of
+    oscillator circuit that drives stepping in real spinal cords. Those numbers are the
+    creature's genome.</p>
+    <p>A population of 30 genomes is simulated; fitness is simply how far the body's
+    centre travels in a fixed time. The best are selected, recombined and mutated, and
+    the cycle repeats — the champion of each generation is replayed live above. Early
+    creatures flop and twitch; useful rhythms are stumbled upon and kept. What emerges is
+    not designed — it is the gait that happened to win, which is why evolved walkers so
+    often move in strange, unintuitive ways. This is locomotion as an optimization
+    problem, the bridge from your evolutionary-robotics session to embodied learning.</p>
+    <p>Try: the same body often evolves completely different gaits on different runs
+    (evolution finds many local optima); a body with one muscle can only hop, while three
+    or four can develop a stride; too few nodes touching the ground and it just falls
+    over — morphology constrains what behaviour is reachable.</p>
+  </details>
+
+  <canvas id="stage" width="960" height="300"></canvas>
+
+  <div class="cols" style="margin-bottom:6px">
+    <div style="flex:2; min-width:520px">
+      <h2 style="margin-top:10px">The champion's controller — a central pattern generator</h2>
+      <canvas id="controller" width="640" height="200"></canvas>
+      <div class="legend">A pacemaker hub (left) drives one oscillator per muscle. Each node's
+        dial shows its phase; the wire to it lights up as that muscle <span style="color:#e0653c">
+        contracts</span>. The orange muscles on the creature above pulse in time with these — the
+        whole "network" is just these few rhythms, the way a spinal CPG drives stepping.</div>
+    </div>
+  </div>
+
+  <div class="cols">
+    <div>
+      <h2>1 — Build the body</h2>
+      <canvas id="editor" width="460" height="300"></canvas>
+      <div class="row">
+        <button id="modeNode" class="on">Add nodes</button>
+        <button id="modeBone">Connect bones</button>
+        <button id="modeMuscle">Mark muscles</button>
+        <button id="modeDel">Delete</button>
+      </div>
+      <div class="row">
+        <button id="clear">Clear</button>
+        <span class="note">presets:</span>
+        <button id="pTadpole">Tadpole</button>
+        <button id="pWorm">Worm</button>
+        <button id="pBiped">Biped</button>
+      </div>
+      <div class="legend">
+        <span class="sw" style="background:#7a8a9a"></span>bone
+        <span class="sw" style="background:#e0653c"></span>muscle
+        <span style="color:#3ddc84">●</span> node
+      </div>
+    </div>
+    <div>
+      <h2>2 — Evolve</h2>
+      <div class="row">
+        <button id="evolve" class="primary" disabled>Start evolving</button>
+        <button id="resetEvo" disabled>Reset</button>
+      </div>
+      <div class="row">
+        <label class="opt">mutation
+          <input type="range" id="mut" min="0" max="100" value="25">
+          <span class="val" id="mutVal"></span></label>
+      </div>
+      <div class="row">
+        <label class="opt"><input type="checkbox" id="turbo"> turbo (skip animation)</label>
+      </div>
+      <div id="stats"></div>
+      <h2>Best distance per generation</h2>
+      <canvas id="curve" width="320" height="110"></canvas>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ===================== Physics + creature ===================== */
+const GRAV = 0.45, FRICTION = 0.86, GROUND_FRICTION = 0.55, BOUNCE = 0.0;
+const ITER = 6, SUBSTEPS = 1;
+const GENES_PER_MUSCLE = 3;   // amplitude, speed(freq), phase
+
+// Body template (authoring space). nodes:[{x,y}], bones:[{a,b,muscle}]
+function makeWorld(body, groundY) {
+  const nodes = body.nodes.map(n => ({ x: n.x, y: n.y, px: n.x, py: n.y }));
+  const bones = body.bones.map(b => ({
+    a: b.a, b: b.b, muscle: b.muscle,
+    len: Math.hypot(nodes[b.a].x - nodes[b.b].x, nodes[b.a].y - nodes[b.b].y),
+  }));
+  return { nodes, bones, groundY };
+}
+
+function muscleCount(body) { return body.bones.filter(b => b.muscle).length; }
+
+// Advance physics one tick. genome drives muscle rest-lengths via sine oscillators.
+function stepWorld(w, genome, t) {
+  let mi = 0;
+  for (const bone of w.bones) {
+    let rest = bone.len;
+    if (bone.muscle) {
+      const amp = genome[mi * GENES_PER_MUSCLE];          // 0..0.5 of base len
+      const freq = genome[mi * GENES_PER_MUSCLE + 1];     // rad per tick
+      const phase = genome[mi * GENES_PER_MUSCLE + 2];
+      rest = bone.len * (1 + amp * Math.sin(t * freq + phase));
+      mi++;
+    }
+    bone.rest = rest;
+  }
+  // integrate
+  for (const n of w.nodes) {
+    const vx = (n.x - n.px) * FRICTION;
+    const vy = (n.y - n.py) * FRICTION;
+    n.px = n.x; n.py = n.y;
+    n.x += vx; n.y += vy + GRAV;
+  }
+  // satisfy bone constraints
+  for (let k = 0; k < ITER; k++) {
+    for (const bone of w.bones) {
+      const a = w.nodes[bone.a], b = w.nodes[bone.b];
+      let dx = b.x - a.x, dy = b.y - a.y;
+      let d = Math.hypot(dx, dy) || 1e-6;
+      const diff = (d - (bone.rest ?? bone.len)) / d * 0.5;
+      dx *= diff; dy *= diff;
+      a.x += dx; a.y += dy; b.x -= dx; b.y -= dy;
+    }
+    // ground collision + friction
+    for (const n of w.nodes) {
+      if (n.y > w.groundY) {
+        n.y = w.groundY;
+        const vx = n.x - n.px;
+        n.px = n.x - vx * GROUND_FRICTION;   // horizontal friction with ground
+        n.py = n.y;
+      }
+    }
+  }
+}
+
+function centroidX(w) {
+  let s = 0; for (const n of w.nodes) s += n.x; return s / w.nodes.length;
+}
+
+// Simulate a genome for `ticks`; return distance travelled (rightward) by centroid.
+function evaluate(body, genome, ticks, groundY) {
+  const w = makeWorld(body, groundY);
+  const start = centroidX(w);
+  let minY = Infinity;
+  for (let t = 0; t < ticks; t++) {
+    stepWorld(w, genome, t);
+    // penalise creatures that launch off-screen (NaN guard)
+    for (const n of w.nodes) if (!Number.isFinite(n.x) || !Number.isFinite(n.y)) return -1e3;
+  }
+  return centroidX(w) - start;
+}
+/* ===================== end physics ===================== */
+
+/* ===================== Genetic algorithm ===================== */
+const POP = 30, ELITE = 3, EVAL_TICKS = 420;
+
+function randGenome(nMuscles) {
+  const g = new Float64Array(nMuscles * GENES_PER_MUSCLE);
+  for (let m = 0; m < nMuscles; m++) {
+    g[m * 3]     = Math.random() * 0.45;          // amplitude
+    g[m * 3 + 1] = 0.05 + Math.random() * 0.25;   // frequency
+    g[m * 3 + 2] = Math.random() * Math.PI * 2;   // phase
+  }
+  return g;
+}
+function clampGene(g) {
+  for (let m = 0; m < g.length / 3; m++) {
+    g[m*3]   = Math.max(0, Math.min(0.5, g[m*3]));
+    g[m*3+1] = Math.max(0.02, Math.min(0.4, g[m*3+1]));
+  }
+  return g;
+}
+function mutate(g, rate) {
+  const c = Float64Array.from(g);
+  for (let i = 0; i < c.length; i++)
+    if (Math.random() < rate) {
+      const kind = i % 3;
+      const sigma = kind === 0 ? 0.12 : kind === 1 ? 0.06 : 0.9;
+      c[i] += (Math.random() * 2 - 1) * sigma;
+    }
+  return clampGene(c);
+}
+function crossover(a, b) {
+  return Float64Array.from(a, (v, i) => Math.random() < 0.5 ? v : b[i]);
+}
+/* ===================== end GA ===================== */
+
+const $ = id => document.getElementById(id);
+
+/* ===================== Body editor ===================== */
+const editor = $("editor"), ectx = editor.getContext("2d");
+let body = { nodes: [], bones: [] };
+let mode = "node", pendingNode = -1;
+
+const PRESETS = {
+  tadpole: { nodes: [[120,120],[180,120],[240,130],[150,170],[210,170]],
+             bones: [[0,1,false],[1,2,false],[0,3,true],[1,4,true],[3,4,false],[1,3,false],[2,4,true]] },
+  worm:    { nodes: [[110,140],[160,170],[210,140],[260,170],[310,140]],
+             bones: [[0,1,true],[1,2,true],[2,3,true],[3,4,true],[0,2,false],[2,4,false]] },
+  biped:   { nodes: [[200,90],[200,140],[170,200],[230,200],[160,250],[240,250]],
+             bones: [[0,1,false],[1,2,true],[1,3,true],[2,4,true],[3,5,true],[2,3,false]] },
+};
+function loadPreset(name) {
+  const p = PRESETS[name];
+  body = { nodes: p.nodes.map(([x,y]) => ({ x, y })),
+           bones: p.bones.map(([a,b,m]) => ({ a, b, muscle: m })) };
+  pendingNode = -1;
+  drawEditor(); syncEvoButtons();
+}
+
+function setMode(m) {
+  mode = m; pendingNode = -1;
+  for (const [id, mm] of [["modeNode","node"],["modeBone","bone"],["modeMuscle","muscle"],["modeDel","del"]])
+    $(id).classList.toggle("on", mm === m);
+  drawEditor();
+}
+$("modeNode").onclick = () => setMode("node");
+$("modeBone").onclick = () => setMode("bone");
+$("modeMuscle").onclick = () => setMode("muscle");
+$("modeDel").onclick = () => setMode("del");
+$("clear").onclick = () => { body = { nodes: [], bones: [] }; pendingNode = -1; drawEditor(); syncEvoButtons(); };
+$("pTadpole").onclick = () => loadPreset("tadpole");
+$("pWorm").onclick = () => loadPreset("worm");
+$("pBiped").onclick = () => loadPreset("biped");
+
+function nodeAt(x, y) {
+  for (let i = 0; i < body.nodes.length; i++)
+    if (Math.hypot(body.nodes[i].x - x, body.nodes[i].y - y) < 12) return i;
+  return -1;
+}
+function boneAt(x, y) {
+  for (let i = 0; i < body.bones.length; i++) {
+    const a = body.nodes[body.bones[i].a], b = body.nodes[body.bones[i].b];
+    const dx = b.x - a.x, dy = b.y - a.y, L2 = dx*dx + dy*dy || 1;
+    let t = ((x-a.x)*dx + (y-a.y)*dy) / L2; t = Math.max(0, Math.min(1, t));
+    const px = a.x + t*dx, py = a.y + t*dy;
+    if (Math.hypot(px - x, py - y) < 8) return i;
+  }
+  return -1;
+}
+editor.addEventListener("pointerdown", e => {
+  const r = editor.getBoundingClientRect();
+  const x = (e.clientX - r.left) * editor.width / r.width;
+  const y = (e.clientY - r.top) * editor.height / r.height;
+  const ni = nodeAt(x, y);
+  if (mode === "node") {
+    if (ni < 0) body.nodes.push({ x, y });
+  } else if (mode === "bone") {
+    if (ni >= 0) {
+      if (pendingNode < 0) pendingNode = ni;
+      else if (pendingNode !== ni) {
+        if (!body.bones.some(b => (b.a===pendingNode&&b.b===ni)||(b.a===ni&&b.b===pendingNode)))
+          body.bones.push({ a: pendingNode, b: ni, muscle: false });
+        pendingNode = -1;
+      }
+    }
+  } else if (mode === "muscle") {
+    const bi = boneAt(x, y);
+    if (bi >= 0) body.bones[bi].muscle = !body.bones[bi].muscle;
+  } else if (mode === "del") {
+    if (ni >= 0) {
+      body.bones = body.bones.filter(b => b.a !== ni && b.b !== ni)
+        .map(b => ({ a: b.a - (b.a > ni ? 1 : 0), b: b.b - (b.b > ni ? 1 : 0), muscle: b.muscle }));
+      body.nodes.splice(ni, 1);
+    } else {
+      const bi = boneAt(x, y);
+      if (bi >= 0) body.bones.splice(bi, 1);
+    }
+  }
+  drawEditor(); syncEvoButtons();
+});
+
+function drawCreature(c, nodes, bones, ox, oy, opts = {}) {
+  for (const bone of bones) {
+    const a = nodes[bone.a], b = nodes[bone.b];
+    if (bone.muscle) {
+      // contraction: -1 (shortened) .. +1 (stretched) relative to amplitude
+      const ratio = bone.rest != null ? (bone.rest / bone.len - 1) : 0;
+      const s = Math.max(-1, Math.min(1, ratio * 4));
+      // shortened -> bright/hot, stretched -> dim
+      const r = 224, g = Math.round(101 - s * 40), bl = Math.round(60 - s * 30);
+      c.strokeStyle = `rgb(${r},${Math.max(40,g)},${Math.max(20,bl)})`;
+      c.lineWidth = 4 + (s < 0 ? -s * 3 : 0);
+    } else {
+      c.strokeStyle = "#7a8a9a"; c.lineWidth = 3;
+    }
+    c.beginPath(); c.moveTo(a.x+ox, a.y+oy); c.lineTo(b.x+ox, b.y+oy); c.stroke();
+  }
+  for (let i = 0; i < nodes.length; i++) {
+    c.fillStyle = (opts.pending === i) ? "#e8c84a" : "#3ddc84";
+    c.beginPath(); c.arc(nodes[i].x+ox, nodes[i].y+oy, 5, 0, 7); c.fill();
+  }
+}
+function drawEditor() {
+  ectx.fillStyle = "#0e0e12"; ectx.fillRect(0,0,editor.width,editor.height);
+  // baseline hint
+  ectx.strokeStyle = "#1c1c22"; ectx.lineWidth = 1;
+  ectx.beginPath(); ectx.moveTo(0, 280); ectx.lineTo(editor.width, 280); ectx.stroke();
+  drawCreature(ectx, body.nodes, body.bones, 0, 0, { pending: pendingNode });
+  if (!body.nodes.length) {
+    ectx.fillStyle = "#555"; ectx.font = "13px sans-serif"; ectx.textAlign = "center";
+    ectx.fillText("click to add nodes, or load a preset", editor.width/2, 150);
+  }
+  ectx.fillStyle = "#666"; ectx.font = "12px sans-serif"; ectx.textAlign = "left";
+  ectx.fillText(`${body.nodes.length} nodes · ${body.bones.length} bones · ${muscleCount(body)} muscles`, 8, 16);
+}
+
+function valid() { return body.nodes.length >= 2 && muscleCount(body) >= 1; }
+function syncEvoButtons() {
+  $("evolve").disabled = !valid() && !evolving;
+  $("resetEvo").disabled = !population;
+}
+/* ===================== end editor ===================== */
+
+/* ===================== Evolution loop ===================== */
+const stage = $("stage"), sctx = stage.getContext("2d");
+const GROUND = 260;
+let population = null, fitness = null, generation = 0, champ = null, champFit = -Infinity;
+let history = [], evolving = false, replayT = 0, replayWorld = null;
+
+function bodyForSim() {
+  // shift body so it sits just above ground near left of stage
+  const minY = Math.min(...body.nodes.map(n => n.y));
+  const maxY = Math.max(...body.nodes.map(n => n.y));
+  const minX = Math.min(...body.nodes.map(n => n.x));
+  const dy = (GROUND - 4) - maxY, dx = 120 - minX;
+  return { nodes: body.nodes.map(n => ({ x: n.x + dx, y: n.y + dy })),
+           bones: body.bones.map(b => ({ ...b })) };
+}
+let simBody = null;
+
+function initPopulation() {
+  simBody = bodyForSim();
+  const nM = muscleCount(simBody);
+  population = Array.from({ length: POP }, () => randGenome(nM));
+  fitness = new Array(POP).fill(0);
+  generation = 0; history = []; champ = null; champFit = -Infinity;
+}
+
+function runGeneration() {
+  for (let i = 0; i < POP; i++)
+    fitness[i] = evaluate(simBody, population[i], EVAL_TICKS, GROUND - 4);
+  // rank
+  const idx = [...population.keys()].sort((a, b) => fitness[b] - fitness[a]);
+  const best = fitness[idx[0]];
+  if (best > champFit) { champFit = best; champ = Float64Array.from(population[idx[0]]); }
+  history.push(best);
+  if (history.length > 200) history.shift();
+  // next generation
+  const rate = +$("mut").value / 100;
+  const next = [];
+  for (let e = 0; e < ELITE; e++) next.push(Float64Array.from(population[idx[e]]));
+  const tournament = () => {
+    let b = idx[Math.floor(Math.random()*POP)];
+    for (let k = 0; k < 2; k++) { const c = idx[Math.floor(Math.random()*POP)]; if (fitness[c] > fitness[b]) b = c; }
+    return population[b];
+  };
+  while (next.length < POP) next.push(mutate(crossover(tournament(), tournament()), rate));
+  population = next;
+  generation++;
+}
+
+const START_X = 120;        // world x where every creature begins
+function drawStage() {
+  sctx.clearRect(0, 0, stage.width, stage.height);
+
+  if (!replayWorld) {
+    sctx.fillStyle = "#16140d"; sctx.fillRect(0, GROUND, stage.width, stage.height - GROUND);
+    sctx.strokeStyle = "#2a2517"; sctx.lineWidth = 2;
+    sctx.beginPath(); sctx.moveTo(0, GROUND); sctx.lineTo(stage.width, GROUND); sctx.stroke();
+    sctx.fillStyle = "#555"; sctx.font = "14px sans-serif"; sctx.textAlign = "center";
+    sctx.fillText("build a body with at least one muscle, then press Start evolving", stage.width/2, 130);
+    return;
+  }
+
+  const cx = centroidX(replayWorld);
+  const dist = cx - START_X;
+  const camera = Math.max(0, cx - 230);   // keep creature ~230px from left
+
+  // --- parallax hills (far, slow) ---
+  sctx.fillStyle = "#14161f";
+  for (let h = -1; h < 8; h++) {
+    const base = h * 260 - (camera * 0.25) % 260;
+    sctx.beginPath();
+    sctx.moveTo(base, GROUND);
+    sctx.quadraticCurveTo(base + 130, GROUND - 70, base + 260, GROUND);
+    sctx.fill();
+  }
+  // mid hills (faster)
+  sctx.fillStyle = "#191b16";
+  for (let h = -1; h < 11; h++) {
+    const base = h * 180 - (camera * 0.5) % 180;
+    sctx.beginPath();
+    sctx.moveTo(base, GROUND);
+    sctx.quadraticCurveTo(base + 90, GROUND - 38, base + 180, GROUND);
+    sctx.fill();
+  }
+
+  // --- ground ---
+  sctx.fillStyle = "#16140d"; sctx.fillRect(0, GROUND, stage.width, stage.height - GROUND);
+  // streaming ground stripes every 25 units — strong sense of motion
+  for (let m = Math.floor(camera / 25) * 25; m < camera + stage.width + 25; m += 25) {
+    const sx = m - camera;
+    sctx.fillStyle = (Math.round(m / 25) % 2) ? "#1a1810" : "#15130c";
+    sctx.fillRect(sx, GROUND, 25, stage.height - GROUND);
+  }
+  sctx.strokeStyle = "#3a3320"; sctx.lineWidth = 2;
+  sctx.beginPath(); sctx.moveTo(0, GROUND); sctx.lineTo(stage.width, GROUND); sctx.stroke();
+
+  // --- distance markers every 100 units, labelled from the start line ---
+  sctx.font = "11px ui-monospace, monospace"; sctx.textAlign = "left";
+  for (let m = 0; m < 6000; m += 100) {
+    const sx = m + START_X - camera;
+    if (sx > -30 && sx < stage.width + 30) {
+      sctx.fillStyle = "#4a4228"; sctx.fillRect(sx, GROUND - 4, 1, 12);
+      sctx.fillStyle = "#6a6038"; sctx.fillText(m | 0, sx + 3, GROUND - 8);
+    }
+  }
+
+  // --- start flag (green) ---
+  const startSx = START_X - camera;
+  if (startSx > -20 && startSx < stage.width) flag(startSx, "#3ddc84", "START");
+
+  // --- best-ever ghost flag (gold) ---
+  if (champFit > 5) {
+    const bestSx = START_X + champFit - camera;
+    if (bestSx > -40 && bestSx < stage.width + 40) flag(bestSx, "#e8c84a", "best " + champFit.toFixed(0));
+  }
+
+  drawCreature(sctx, replayWorld.nodes, replayWorld.bones, -camera, 0);
+
+  // --- big live distance readout ---
+  sctx.textAlign = "left";
+  sctx.fillStyle = "#cfe8d8"; sctx.font = "bold 30px ui-monospace, monospace";
+  sctx.fillText(dist.toFixed(0), 16, 40);
+  sctx.fillStyle = "#7d9a86"; sctx.font = "12px ui-monospace, monospace";
+  sctx.fillText("units travelled", 18, 56);
+  sctx.fillStyle = "#8fbf9f"; sctx.font = "13px ui-monospace, monospace"; sctx.textAlign = "right";
+  sctx.fillText(`generation ${generation}`, stage.width - 14, 24);
+}
+
+function flag(sx, color, label) {
+  sctx.strokeStyle = color; sctx.lineWidth = 2;
+  sctx.beginPath(); sctx.moveTo(sx, GROUND); sctx.lineTo(sx, GROUND - 46); sctx.stroke();
+  sctx.fillStyle = color;
+  sctx.beginPath(); sctx.moveTo(sx, GROUND - 46); sctx.lineTo(sx + 22, GROUND - 40);
+  sctx.lineTo(sx, GROUND - 34); sctx.fill();
+  sctx.font = "10px ui-monospace, monospace"; sctx.textAlign = "left";
+  sctx.fillText(label, sx + 3, GROUND - 50);
+}
+
+function drawCurve() {
+  const c = $("curve").getContext("2d");
+  c.fillStyle = "#111"; c.fillRect(0, 0, 320, 110);
+  if (history.length < 2) return;
+  const max = Math.max(1, ...history), min = Math.min(0, ...history), span = (max - min) || 1;
+  c.strokeStyle = "#3ddc84"; c.lineWidth = 1.5; c.beginPath();
+  history.forEach((v, i) => {
+    const x = 6 + i/(history.length-1)*308;
+    const y = 102 - (v - min)/span*92;
+    i ? c.lineTo(x, y) : c.moveTo(x, y);
+  });
+  c.stroke();
+  c.fillStyle = "#666"; c.font = "10px ui-monospace, monospace";
+  c.fillText(max.toFixed(0), 2, 10); c.fillText(min.toFixed(0), 2, 106);
+}
+
+function updateStats() {
+  $("stats").textContent =
+    `generation ${generation}\n` +
+    `best ever distance: ${champFit > -Infinity ? champFit.toFixed(0) : "—"}\n` +
+    (history.length ? `this generation best: ${history[history.length-1].toFixed(0)}` : "evaluating…");
+}
+
+// Live view of the champion's controller: one oscillator per muscle.
+const ctrl = $("controller"), kctx = ctrl.getContext("2d");
+function drawController(t) {
+  kctx.fillStyle = "#0e0e12"; kctx.fillRect(0, 0, ctrl.width, ctrl.height);
+  if (!champ) {
+    kctx.fillStyle = "#555"; kctx.font = "13px sans-serif"; kctx.textAlign = "center";
+    kctx.fillText("the champion's muscle oscillators appear here once evolution starts", ctrl.width/2, 75);
+    return;
+  }
+  const nM = champ.length / GENES_PER_MUSCLE;
+  const hub = [70, ctrl.height / 2];                 // pacemaker hub position
+  const x1 = 240, R = 30;                            // oscillator column
+  const spacing = Math.min(64, (ctrl.height - 30) / nM);
+  const y0 = ctrl.height / 2 - (nM - 1) * spacing / 2;
+
+  const osc = [];
+  for (let m = 0; m < nM; m++) {
+    const amp = champ[m*3], freq = champ[m*3+1], phase = champ[m*3+2];
+    const ang = t * freq + phase;
+    const val = Math.sin(ang);                        // -1..1
+    const contraction = -amp * val;                   // >0 when shortening
+    osc.push({ amp, freq, phase, ang, val, contraction, x: x1, y: y0 + m * spacing });
+  }
+
+  // --- connections: hub -> each oscillator, brightness = how hard that muscle pulls now ---
+  for (const o of osc) {
+    const drive = Math.min(1, Math.max(0, o.contraction) * 4 + 0.05);
+    kctx.strokeStyle = `rgba(224,101,60,${0.15 + 0.75 * drive})`;
+    kctx.lineWidth = 1 + 4 * drive;
+    kctx.beginPath(); kctx.moveTo(hub[0] + 18, hub[1]); kctx.lineTo(o.x - R - 2, o.y); kctx.stroke();
+    // travelling pulse dot along the wire
+    const f = (Math.sin(o.ang) + 1) / 2;
+    kctx.fillStyle = `rgba(232,200,74,${0.3 + 0.7 * drive})`;
+    kctx.beginPath();
+    kctx.arc(hub[0] + 18 + (o.x - R - 2 - hub[0] - 18) * f, hub[1] + (o.y - hub[1]) * f, 2.5, 0, 7);
+    kctx.fill();
+  }
+
+  // --- pacemaker hub ---
+  kctx.fillStyle = "#15251b"; kctx.strokeStyle = "#3ddc84"; kctx.lineWidth = 2;
+  kctx.beginPath(); kctx.arc(hub[0], hub[1], 18, 0, 7); kctx.fill(); kctx.stroke();
+  kctx.fillStyle = "#3ddc84"; kctx.font = "11px ui-monospace, monospace"; kctx.textAlign = "center";
+  kctx.fillText("pace", hub[0], hub[1] - 24);
+
+  // --- oscillator nodes (phase dial + contraction fill) ---
+  for (let m = 0; m < nM; m++) {
+    const o = osc[m];
+    const heat = Math.min(1, Math.max(0, o.contraction) * 4);
+    // node body, tinted hot while contracting
+    kctx.fillStyle = `rgb(${30 + 60*heat}, ${28 + 12*heat}, ${22})`;
+    kctx.strokeStyle = "#444"; kctx.lineWidth = 2;
+    kctx.beginPath(); kctx.arc(o.x, o.y, R, 0, 7); kctx.fill(); kctx.stroke();
+    // phase hand
+    kctx.strokeStyle = "#e0653c"; kctx.lineWidth = 2.5;
+    kctx.beginPath(); kctx.moveTo(o.x, o.y);
+    kctx.lineTo(o.x + Math.cos(o.ang) * (R - 4), o.y + Math.sin(o.ang) * (R - 4)); kctx.stroke();
+    kctx.fillStyle = "#e0653c";
+    kctx.beginPath(); kctx.arc(o.x + Math.cos(o.ang)*(R-4), o.y + Math.sin(o.ang)*(R-4), 3, 0, 7); kctx.fill();
+    // label + genes
+    kctx.fillStyle = "#aaa"; kctx.font = "11px ui-monospace, monospace"; kctx.textAlign = "left";
+    kctx.fillText(`muscle ${m+1}`, o.x + R + 12, o.y - 3);
+    kctx.fillStyle = "#666"; kctx.font = "10px ui-monospace, monospace";
+    kctx.fillText(`amp ${(o.amp*100|0)}%  freq ${o.freq.toFixed(2)}  φ ${o.phase.toFixed(1)}`, o.x + R + 12, o.y + 11);
+  }
+}
+
+// main animation: evolve one generation, then replay the champion while next evolves
+let raf = null;
+function frame() {
+  if (!evolving) return;
+  if ($("turbo").checked) {
+    for (let k = 0; k < 4; k++) runGeneration();
+    replayWorld = makeWorld(simBody, GROUND - 4);
+    drawStage(); drawCurve(); drawController(replayT); updateStats();
+    raf = requestAnimationFrame(frame);
+    return;
+  }
+  // replay champion for one eval cycle, evolving next gen at the start
+  if (replayT === 0) { runGeneration(); replayWorld = makeWorld(simBody, GROUND - 4); }
+  if (champ) {
+    for (let s = 0; s < 2; s++) { stepWorld(replayWorld, champ, replayT); replayT++; }
+    if (replayT >= EVAL_TICKS) replayT = 0;
+  }
+  drawStage(); drawCurve(); drawController(replayT); updateStats();
+  raf = requestAnimationFrame(frame);
+}
+
+$("evolve").onclick = () => {
+  if (!evolving) {
+    if (!valid()) return;
+    if (!population) initPopulation();
+    evolving = true; replayT = 0;
+    $("evolve").textContent = "Pause"; $("evolve").classList.add("on");
+    $("resetEvo").disabled = false;
+    frame();
+  } else {
+    evolving = false;
+    $("evolve").textContent = "Resume"; $("evolve").classList.remove("on");
+    if (raf) cancelAnimationFrame(raf);
+  }
+};
+$("resetEvo").onclick = () => {
+  evolving = false; if (raf) cancelAnimationFrame(raf);
+  population = null; replayWorld = null; champ = null; champFit = -Infinity;
+  generation = 0; history = []; replayT = 0;
+  $("evolve").textContent = "Start evolving"; $("evolve").classList.remove("on");
+  drawStage(); drawCurve(); drawController(0); updateStats(); syncEvoButtons();
+};
+$("mut").oninput = () => $("mutVal").textContent = $("mut").value + "%";
+/* ===================== end evolution ===================== */
+
+// init
+$("mutVal").textContent = $("mut").value + "%";
+loadPreset("tadpole");
+drawStage(); drawCurve(); drawController(0); updateStats();
+</script>
+</body>
+</html>

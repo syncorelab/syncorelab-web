@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Symbolic vs. Statistical — Two Ways to "Reason"</title>
+<style>
+  html, body { margin: 0; background: #0a0a0a; color: #ddd;
+               font-family: -apple-system, "Segoe UI", sans-serif; }
+  #app { max-width: 1020px; margin: 0 auto; padding: 16px 14px 40px; }
+  h1 { font-size: 20px; margin: 4px 0 2px; }
+  .sub { font-size: 13px; color: #888; margin-bottom: 12px; }
+  details { background: #161616; border: 1px solid #333; border-radius: 8px;
+            padding: 10px 14px; margin-bottom: 14px; font-size: 14px; line-height: 1.5; }
+  summary { cursor: pointer; color: #3ddc84; font-weight: 600; }
+  details p { color: #bbb; }
+  h2 { font-size: 15px; margin: 0 0 8px; }
+  h3 { font-size: 13px; margin: 12px 0 4px; color: #aaa; font-weight: 600; }
+  .scenarios { margin: 0 0 14px; }
+  .scenarios button { display: inline-block; margin: 0 8px 6px 0; }
+  .cols { display: flex; gap: 18px; flex-wrap: wrap; }
+  .panel { flex: 1; min-width: 380px; border: 1px solid #333; border-radius: 10px;
+           padding: 12px 14px; background: #111; }
+  .panel.sym { border-top: 3px solid #3ddc84; }
+  .panel.stat { border-top: 3px solid #d4a23c; }
+  textarea, input[type=text] { width: 100%; box-sizing: border-box; background: #1a1a1a;
+    color: #ccc; border: 1px solid #444; border-radius: 6px; padding: 8px;
+    font-size: 13px; font-family: ui-monospace, Menlo, monospace; }
+  textarea { resize: vertical; }
+  button { background: #2d2d2d; color: #ddd; border: 1px solid #444; border-radius: 6px;
+           padding: 5px 13px; font-size: 13px; cursor: pointer; }
+  button:hover { background: #3a3a3a; }
+  button.primary { background: #1e3a2a; border-color: #2e5a40; }
+  button.primary:hover { background: #28503a; }
+  .row { display: flex; align-items: center; gap: 8px; margin: 8px 0; flex-wrap: wrap; }
+  .out { font-family: ui-monospace, Menlo, monospace; font-size: 13px; line-height: 1.55;
+         background: #0d0d0d; border: 1px solid #2a2a2a; border-radius: 6px;
+         padding: 8px 10px; min-height: 24px; white-space: pre-wrap; }
+  .out.solutions { color: #8fd9a8; }
+  .out.completions { color: #e3c98a; }
+  #trace { max-height: 280px; overflow-y: auto; color: #7da88c; }
+  .note { font-size: 12px; color: #777; }
+  .bar-row { display: flex; align-items: center; gap: 8px; margin: 2px 0;
+             font-family: ui-monospace, Menlo, monospace; font-size: 13px; }
+  .tok { min-width: 50px; background: #222; border: 1px solid #3a3a3a; border-radius: 4px;
+         padding: 1px 6px; text-align: center; }
+  .bar-bg { flex: 1; height: 13px; background: #181818; border-radius: 4px; overflow: hidden; }
+  .bar { height: 100%; background: #d4a23c; min-width: 1px; }
+  .pct { width: 50px; text-align: right; color: #999; font-size: 12px; }
+</style>
+<link rel="stylesheet" href="experiment-shell.css">
+<link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+</head>
+<body class="experiment-page">
+<a class="experiment-skip" href="#app">Skip to experiment</a>
+<header class="experiment-shell">
+  <a class="shell-brand" href="../index.html?skipIntro=1"><strong>SYN·CO·RE</strong> LAB</a>
+  <span class="shell-context">AI Experiment · PSY3230</span>
+  <nav class="shell-nav" aria-label="Experiment navigation"><a href="../index.html?skipIntro=1#experiments">&larr; Back to website</a><a href="../index.html?skipIntro=1#contact">Contact</a></nav>
+</header>
+<div id="app" tabindex="-1">
+  <h1>Symbolic vs. Statistical Inference</h1>
+  <div class="sub">The same family knowledge, two machines: a logic engine that <i>derives</i>
+    answers it can prove, and a language model that <i>predicts</i> answers that sound right.
+    Both are "AI". Only one of them knows why.</div>
+
+  <details>
+    <summary>What is happening here?</summary>
+    <p>The left panel is a miniature <b>Prolog</b>: knowledge lives as explicit facts and
+    rules, and answering a query means constructing a proof — every step is shown in the
+    trace, including the dead ends it backtracks out of. It answers questions whose
+    answers appear nowhere in the knowledge base (no grandparent fact is stored — the
+    relation is derived), and when something is false, it says so, provably. The price:
+    total rigidity. Misspell a name, ask about an undefined relation, and you get
+    nothing at all.</p>
+    <p>The right panel is the statistical machine: the <i>same</i> knowledge written as
+    sentences, learned by a word-level n-gram model that only tracks which words follow
+    which. It answers in fluent language and handles questions the way an
+    autocomplete would — by pattern. Where the pattern happens to encode the fact
+    ("bob is the parent of …"), it is correct. Where the answer requires an inference
+    step it has never seen written down, it <b>confabulates</b> — fluently, confidently,
+    wrongly. It has no representation of <i>who anyone's grandparent actually is</i>.</p>
+    <p>This is the contrast behind debates about LLM "reasoning": modern models are
+    incomparably better pattern machines than this toy, but the architecture of the
+    question — proof versus plausibility — remains. Try the three scenarios, then ask
+    your own questions on both sides.</p>
+  </details>
+
+  <div class="scenarios">
+    <span class="note">paired scenarios — ask both machines: </span>
+    <button class="primary" id="sc1">Who are bob's children?</button>
+    <button class="primary" id="sc2">Who is ann's grandparent?</button>
+    <button class="primary" id="sc3">Is tom an ancestor of ann?</button>
+  </div>
+
+  <div class="cols">
+    <div class="panel sym">
+      <h2 style="color:#3ddc84">Symbolic — Prolog</h2>
+      <h3>Knowledge base (facts &amp; rules — editable)</h3>
+      <textarea id="kb" rows="11" spellcheck="false"></textarea>
+      <h3>Query</h3>
+      <div class="row">
+        <input type="text" id="query" style="flex:1"
+               placeholder="e.g.  grandparent(X, ann)" spellcheck="false">
+        <button id="ask" class="primary">Prove</button>
+      </div>
+      <h3>Answers <span class="note">(everything it can prove)</span></h3>
+      <div class="out solutions" id="solutions"></div>
+      <h3>Proof trace <span class="note">(watch it reason — and backtrack)</span></h3>
+      <div class="out" id="trace"></div>
+    </div>
+
+    <div class="panel stat">
+      <h2 style="color:#d4a23c">Statistical — n-gram language model</h2>
+      <h3>Training text (same knowledge, as sentences — editable)</h3>
+      <textarea id="corpus" rows="11" spellcheck="false"></textarea>
+      <h3>Prompt</h3>
+      <div class="row">
+        <input type="text" id="prompt" style="flex:1"
+               placeholder="e.g.  the grandparent of ann is" spellcheck="false">
+        <button id="complete" class="primary">Complete</button>
+      </div>
+      <h3>Next-word probabilities</h3>
+      <div id="bars"></div>
+      <h3>Sampled completions <span class="note">(3 runs — note the variety)</span></h3>
+      <div class="out completions" id="completions"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ================= Mini-Prolog engine ================= */
+// term: {a:name} | {v:name} | {f:name, args:[…]}
+const MAX_SOLUTIONS = 12, MAX_TRACE = 350, MAX_STEPS = 6000;
+
+function tokenizeP(src) {
+  return src.replace(/%[^\n]*/g, " ")
+    .match(/[A-Za-z_][A-Za-z0-9_]*|:-|\\=|[(),.]/g) ?? [];
+}
+
+function parseProgram(src) {
+  const T = tokenizeP(src);
+  let i = 0;
+  const peek = () => T[i], next = () => T[i++];
+  const expect = t => { if (next() !== t) throw new Error(`expected "${t}" near token ${i}`); };
+  function parseTerm() {
+    const t = next();
+    if (!t || (!/^[A-Za-z_]/.test(t) && t !== "\\=")) throw new Error(`unexpected "${t}"`);
+    if (peek() === "(") {
+      next();
+      const args = [parseTerm()];
+      while (peek() === ",") { next(); args.push(parseTerm()); }
+      expect(")");
+      return { f: t, args };
+    }
+    return /^[A-Z_]/.test(t) ? { v: t } : { a: t };
+  }
+  const clauses = [];
+  while (i < T.length) {
+    const head = parseTerm();
+    const body = [];
+    if (peek() === ":-") {
+      next();
+      body.push(parseTerm());
+      while (peek() === ",") { next(); body.push(parseTerm()); }
+    }
+    expect(".");
+    clauses.push({ head, body });
+  }
+  return clauses;
+}
+
+function parseQuery(src) {
+  const clauses = parseProgram(src.trim().replace(/\.?\s*$/, "."));
+  if (clauses.length !== 1 || clauses[0].body.length) throw new Error("enter a single goal");
+  return clauses[0].head;
+}
+
+const walk = (t, s) => { while (t.v && s.has(t.v)) t = s.get(t.v); return t; };
+function unify(a, b, s) {
+  a = walk(a, s); b = walk(b, s);
+  if (a.v) { const s2 = new Map(s); s2.set(a.v, b); return s2; }
+  if (b.v) { const s2 = new Map(s); s2.set(b.v, a); return s2; }
+  if (a.a !== undefined && b.a !== undefined) return a.a === b.a ? s : null;
+  if (a.f && b.f && a.f === b.f && a.args.length === b.args.length) {
+    let cur = s;
+    for (let k = 0; k < a.args.length; k++) {
+      cur = unify(a.args[k], b.args[k], cur);
+      if (!cur) return null;
+    }
+    return cur;
+  }
+  return null;
+}
+
+let renameCounter = 0;
+function rename(t) {
+  if (t.v) return { v: t.v + "#" + renameCounter };
+  if (t.f) return { f: t.f, args: t.args.map(rename) };
+  return t;
+}
+
+function resolveDeep(t, s) {
+  t = walk(t, s);
+  if (t.f) return { f: t.f, args: t.args.map(x => resolveDeep(x, s)) };
+  return t;
+}
+function fmt(t) {
+  if (t.v !== undefined) return t.v.replace(/#\d+$/, "");
+  if (t.a !== undefined) return t.a;
+  return `${t.f}(${t.args.map(fmt).join(", ")})`;
+}
+
+function solveQuery(db, goal) {
+  const solutions = [], trace = [];
+  let steps = 0;
+  const qVars = [];
+  (function collect(t) {
+    if (t.v && !qVars.includes(t.v)) qVars.push(t.v);
+    else if (t.f) t.args.forEach(collect);
+  })(goal);
+
+  const log = (depth, msg) => { if (trace.length < MAX_TRACE) trace.push("  ".repeat(depth) + msg); };
+
+  function solve(goals, s, depth) {
+    if (solutions.length >= MAX_SOLUTIONS || ++steps > MAX_STEPS) return;
+    if (!goals.length) {
+      const binding = qVars.map(v => `${v} = ${fmt(resolveDeep({ v }, s))}`).join(", ");
+      log(depth, "★ SOLUTION " + (binding || "(true)"));
+      solutions.push(binding || "true");
+      return;
+    }
+    const [g, ...rest] = goals;
+    const gShown = fmt(resolveDeep(g, s));
+    // built-in inequality  \=(A, B)
+    const gw = walk(g, s);
+    if (gw.f === "\\=" && gw.args.length === 2) {
+      const A = resolveDeep(gw.args[0], s), B = resolveDeep(gw.args[1], s);
+      if (A.a !== undefined && B.a !== undefined && A.a !== B.a) {
+        log(depth, `✓ ${gShown}`);
+        solve(rest, s, depth);
+      } else log(depth, `✗ ${gShown}`);
+      return;
+    }
+    log(depth, "?- " + gShown);
+    let matched = false;
+    for (const clause of db) {
+      renameCounter++;
+      const head = rename(clause.head);
+      const s2 = unify(g, head, s);
+      if (!s2) continue;
+      matched = true;
+      if (!clause.body.length) {
+        log(depth + 1, `✓ fact ${fmt(resolveDeep(head, s2))}`);
+        solve(rest, s2, depth);
+      } else {
+        const body = clause.body.map(rename);
+        log(depth + 1, `→ rule ${fmt(clause.head)} :- ${clause.body.map(fmt).join(", ")}`);
+        solve([...body, ...rest], s2, depth + 1);
+      }
+      if (solutions.length >= MAX_SOLUTIONS || steps > MAX_STEPS) return;
+    }
+    if (!matched) log(depth + 1, "✗ no matching fact or rule — backtrack");
+  }
+  solve([goal], new Map(), 0);
+  return { solutions, trace, truncated: steps > MAX_STEPS || trace.length >= MAX_TRACE };
+}
+/* ================= end engine ================= */
+
+/* ================= Word n-gram model ================= */
+const ORDER = 5, SEP = "", TOP_K = 6;
+let model = [];
+const tok = t => t.toLowerCase().match(/[a-z']+|\./g) ?? [];
+
+function trainStat(text) {
+  const tokens = tok(text);
+  model = Array.from({ length: ORDER + 1 }, () => new Map());
+  for (let i = 0; i < tokens.length; i++)
+    for (let k = 0; k <= ORDER && k <= i; k++) {
+      const ctx = tokens.slice(i - k, i).join(SEP);
+      let d = model[k].get(ctx);
+      if (!d) { d = new Map(); model[k].set(ctx, d); }
+      d.set(tokens[i], (d.get(tokens[i]) ?? 0) + 1);
+    }
+}
+function predictStat(ctxTokens) {
+  for (let k = Math.min(ORDER, ctxTokens.length); k >= 0; k--) {
+    const d = model[k].get(ctxTokens.slice(ctxTokens.length - k).join(SEP));
+    if (d && d.size) return { dist: d, used: k };
+  }
+  return { dist: new Map(), used: 0 };
+}
+function sampleStat(dist) {
+  const total = [...dist.values()].reduce((a, b) => a + b, 0);
+  let r = Math.random() * total;
+  for (const [t, c] of dist) { r -= c; if (r <= 0) return t; }
+  return [...dist.keys()].pop();
+}
+function completeStat(prompt, maxTokens = 8) {
+  let t = tok(prompt);
+  const start = t.length;
+  for (let i = 0; i < maxTokens; i++) {
+    const { dist } = predictStat(t);
+    if (!dist.size) break;
+    const w = sampleStat(dist);
+    t.push(w);
+    if (w === ".") break;
+  }
+  return t.slice(start).join(" ");
+}
+/* ================= end model ================= */
+
+const DEFAULT_KB = `% facts
+parent(tom, bob).
+parent(pam, bob).
+parent(bob, ann).
+parent(bob, pat).
+parent(joe, sam).
+parent(sam, lily).
+male(tom). male(bob). male(joe). male(sam).
+female(pam). female(ann). female(pat). female(lily).
+
+% rules — note: no grandparent facts are stored anywhere
+mother(X, Y) :- parent(X, Y), female(X).
+father(X, Y) :- parent(X, Y), male(X).
+grandparent(X, Y) :- parent(X, Z), parent(Z, Y).
+sibling(X, Y) :- parent(Z, X), parent(Z, Y), \\=(X, Y).
+ancestor(X, Y) :- parent(X, Y).
+ancestor(X, Y) :- parent(X, Z), ancestor(Z, Y).`;
+
+const DEFAULT_CORPUS = `tom is the parent of bob . pam is the parent of bob .
+bob is the parent of ann . bob is the parent of pat .
+joe is the parent of sam . sam is the parent of lily .
+joe is the grandparent of lily .
+tom is male . bob is male . joe is male . sam is male .
+pam is female . ann is female . pat is female . lily is female .`;
+
+const $ = id => document.getElementById(id);
+$("kb").value = DEFAULT_KB;
+$("corpus").value = DEFAULT_CORPUS;
+
+// --- Symbolic side ---
+function runQuery() {
+  let db, q;
+  try { db = parseProgram($("kb").value); }
+  catch (e) { $("solutions").textContent = "knowledge base error: " + e.message; return; }
+  try { q = parseQuery($("query").value); }
+  catch (e) { $("solutions").textContent = "query error: " + e.message; return; }
+  const { solutions, trace, truncated } = solveQuery(db, q);
+  $("solutions").textContent = solutions.length
+    ? solutions.map(s => "✔ " + s).join("\n")
+    : "false.  (provably — no derivation exists)";
+  $("trace").textContent = trace.join("\n") + (truncated ? "\n… (truncated)" : "");
+}
+$("ask").onclick = runQuery;
+$("query").addEventListener("keydown", e => { if (e.key === "Enter") runQuery(); });
+
+// --- Statistical side ---
+function runPrompt() {
+  trainStat($("corpus").value);
+  const prompt = $("prompt").value;
+  const t = tok(prompt);
+  const { dist, used } = predictStat(t);
+  const bars = $("bars");
+  bars.innerHTML = "";
+  if (!dist.size) {
+    bars.innerHTML = '<span class="note">no prediction — context never seen</span>';
+  } else {
+    const total = [...dist.values()].reduce((a, b) => a + b, 0);
+    [...dist.entries()].sort((a, b) => b[1] - a[1]).slice(0, TOP_K)
+      .forEach(([w, c]) => {
+        const p = c / total;
+        const row = document.createElement("div");
+        row.className = "bar-row";
+        row.innerHTML = `<span class="tok">${w}</span>
+          <div class="bar-bg"><div class="bar" style="width:${(p*100).toFixed(1)}%"></div></div>
+          <span class="pct">${(p*100).toFixed(0)}%</span>`;
+        bars.appendChild(row);
+      });
+    const note = document.createElement("div");
+    note.className = "note";
+    note.textContent = `(based on the last ${used} word${used===1?"":"s"} of context — that is all it ever sees)`;
+    bars.appendChild(note);
+  }
+  $("completions").textContent = [1,2,3]
+    .map(() => "→ " + prompt + " " + (completeStat(prompt) || "…"))
+    .join("\n");
+}
+$("complete").onclick = runPrompt;
+$("prompt").addEventListener("keydown", e => { if (e.key === "Enter") runPrompt(); });
+
+// --- Paired scenarios ---
+function scenario(prologQ, nlPrompt) {
+  $("query").value = prologQ;
+  $("prompt").value = nlPrompt;
+  runQuery();
+  runPrompt();
+}
+$("sc1").onclick = () => scenario("parent(bob, X)", "bob is the parent of");
+$("sc2").onclick = () => scenario("grandparent(X, ann)", "the grandparent of ann is");
+$("sc3").onclick = () => scenario("ancestor(tom, ann)", "tom is the ancestor of");
+
+// initial state
+scenario("grandparent(X, ann)", "the grandparent of ann is");
+</script>
+</body>
+</html>

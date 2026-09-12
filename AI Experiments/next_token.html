@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Next-Token Predictor — What Language Models Fundamentally Do</title>
+<style>
+  html, body { margin: 0; background: #0a0a0a; color: #ddd;
+               font-family: -apple-system, "Segoe UI", sans-serif; }
+  #app { max-width: 860px; margin: 0 auto; padding: 16px 14px 40px; }
+  h1 { font-size: 20px; margin: 4px 0 2px; }
+  .sub { font-size: 13px; color: #888; margin-bottom: 12px; }
+  details { background: #161616; border: 1px solid #333; border-radius: 8px;
+            padding: 10px 14px; margin-bottom: 14px; font-size: 14px; line-height: 1.5; }
+  summary { cursor: pointer; color: #3ddc84; font-weight: 600; }
+  details p { color: #bbb; }
+  h2 { font-size: 15px; margin: 18px 0 6px; color: #aaa; }
+  textarea { width: 100%; box-sizing: border-box; background: #1a1a1a; color: #bbb;
+             border: 1px solid #444; border-radius: 8px; padding: 10px; font-size: 13px;
+             font-family: Georgia, serif; resize: vertical; }
+  #typed { width: 100%; box-sizing: border-box; background: #1a1a1a; color: #ddd;
+           border: 1px solid #444; border-radius: 8px; padding: 12px;
+           font-size: 17px; font-family: ui-monospace, Menlo, monospace; }
+  button { background: #2d2d2d; color: #ddd; border: 1px solid #444; border-radius: 6px;
+           padding: 6px 16px; font-size: 14px; cursor: pointer; margin-right: 8px; }
+  button:hover { background: #3a3a3a; }
+  .row { display: flex; align-items: center; gap: 10px; margin: 8px 0; flex-wrap: wrap; }
+  .note { font-size: 12px; color: #777; }
+  label.opt { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #aaa; }
+  #bars { margin-top: 10px; }
+  .bar-row { display: flex; align-items: center; gap: 10px; margin: 3px 0;
+             font-family: ui-monospace, Menlo, monospace; font-size: 14px;
+             cursor: pointer; border-radius: 5px; padding: 1px 4px; }
+  .bar-row:hover { background: #181f1a; }
+  .tok { min-width: 36px; text-align: center; background: #222; border: 1px solid #3a3a3a;
+         border-radius: 4px; padding: 2px 6px; white-space: pre; }
+  .bar-bg { flex: 1; height: 16px; background: #181818; border-radius: 4px; overflow: hidden; }
+  .bar { height: 100%; background: #3ddc84; border-radius: 4px;
+         transition: width .15s; min-width: 1px; }
+  .pct { width: 56px; text-align: right; color: #999; font-size: 13px; }
+  #ctxInfo { font-size: 13px; color: #888; margin-top: 8px;
+             font-family: ui-monospace, Menlo, monospace; }
+  #genOut { background: #161616; border: 1px solid #333; border-radius: 8px; padding: 12px;
+            margin-top: 10px; font-family: Georgia, serif; font-size: 15px; line-height: 1.6;
+            color: #cfd8cf; white-space: pre-wrap; min-height: 40px; }
+  #genOut .prompt { color: #888; }
+  input[type=range] { width: 140px; }
+  .val { font-variant-numeric: tabular-nums; font-size: 13px; color: #aaa; min-width: 34px; }
+</style>
+<link rel="stylesheet" href="experiment-shell.css">
+<link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+</head>
+<body class="experiment-page">
+<a class="experiment-skip" href="#app">Skip to experiment</a>
+<header class="experiment-shell">
+  <a class="shell-brand" href="../index.html?skipIntro=1"><strong>SYN·CO·RE</strong> LAB</a>
+  <span class="shell-context">AI Experiment · PSY3230</span>
+  <nav class="shell-nav" aria-label="Experiment navigation"><a href="../index.html?skipIntro=1#experiments">&larr; Back to website</a><a href="../index.html?skipIntro=1#contact">Contact</a></nav>
+</header>
+<div id="app" tabindex="-1">
+  <h1>Next-Token Predictor</h1>
+  <div class="sub">A tiny language model, trained in your browser in milliseconds.
+    Large language models do — at their core — the same thing, scaled up by a factor
+    of billions.</div>
+
+  <details>
+    <summary>What is happening here?</summary>
+    <p>This page counts, for every short sequence of tokens in the training text, which
+    token tends to come next (an <i>n-gram model</i>). As you type, it looks at your last
+    few tokens and shows the probability distribution over the next one. "Generating
+    text" means sampling from that distribution, over and over. Click a prediction to
+    accept it — that is autocomplete; do it repeatedly and you are the sampling loop.</p>
+    <p>An LLM differs in mechanism — a neural network computing the distribution from the
+    entire context, over word fragments rather than characters — but not in objective:
+    it is trained to do exactly this, predict the next token. Everything that looks like
+    reasoning, style, or personality in generated text is downstream of this one task.
+    Watching it here, in its minimal form, is a useful inoculation against reading too
+    much mind into fluent output — and an honest puzzle about how much capability
+    "mere prediction" can buy at scale.</p>
+    <p>Experiments to try: shrink the context length to 1 and watch the output dissolve
+    into gibberish; switch to word-level tokens and see more "sensible" but more parroted
+    text; paste your own writing and watch it imitate you.</p>
+  </details>
+
+  <h2>1 — Training text (edit or paste your own, then retrain)</h2>
+  <textarea id="corpus" rows="6"></textarea>
+  <div class="row">
+    <button id="train">Train model</button>
+    <label class="opt"><input type="radio" name="unit" value="char" checked> character tokens</label>
+    <label class="opt"><input type="radio" name="unit" value="word"> word tokens</label>
+    <label class="opt">context length
+      <input type="range" id="order" min="1" max="8" value="5">
+      <span class="val" id="orderVal">5</span></label>
+  </div>
+  <div class="note" id="trainInfo"></div>
+
+  <h2>2 — Type, and watch the model predict — or click a prediction to accept it</h2>
+  <input id="typed" placeholder="Start typing here…" autocomplete="off" spellcheck="false">
+  <div id="ctxInfo"></div>
+  <div id="bars"></div>
+
+  <h2>3 — Let it generate</h2>
+  <div class="row">
+    <button id="generate">Generate continuation</button>
+    <label class="opt">Temperature
+      <input type="range" id="temp" min="1" max="200" value="80">
+      <span class="val" id="tempVal">0.80</span>
+    </label>
+  </div>
+  <div class="note">Low temperature: always pick the likeliest token (repetitive, "safe").
+    High: sample more randomly (creative, then incoherent). The same dial exists in LLMs.</div>
+  <div id="genOut"></div>
+</div>
+
+<script>
+"use strict";
+
+const TOP_K = 8;
+const SEP = "";
+
+const DEFAULT_CORPUS = `Alice was beginning to get very tired of sitting by her sister on the bank, and of having nothing to do: once or twice she had peeped into the book her sister was reading, but it had no pictures or conversations in it, and what is the use of a book, thought Alice, without pictures or conversations? So she was considering in her own mind whether the pleasure of making a daisy-chain would be worth the trouble of getting up and picking the daisies, when suddenly a White Rabbit with pink eyes ran close by her. There was nothing so very remarkable in that; nor did Alice think it so very much out of the way to hear the Rabbit say to itself, oh dear! Oh dear! I shall be late! It was the best of times, it was the worst of times, it was the age of wisdom, it was the age of foolishness, it was the epoch of belief, it was the epoch of incredulity, it was the season of light, it was the season of darkness, it was the spring of hope, it was the winter of despair. It is a truth universally acknowledged, that a single man in possession of a good fortune, must be in want of a wife. The mind is not a vessel to be filled but a fire to be kindled. The question is not whether machines can think, but whether what they do when they predict the next word deserves the name of thinking at all. A model that has read enough text learns the shape of sentences, the rhythm of argument, the habits of punctuation. It learns that a question mark follows a question, that the word the is rarely followed by another the, and that minds are most often spoken of as things that wander, change, or break. None of this requires understanding, and yet the result can be difficult to tell apart from it. The reader who watches probabilities flow letter by letter sees the trick from the inside, and the trick is no less interesting for being visible.`;
+
+let model = null;     // array of Maps, index = context length
+let ORDER = 5;
+let UNIT = "char";    // "char" | "word"
+
+// --- Tokenization ---
+function tokenize(text) {
+  if (UNIT === "char") return [...text];
+  return text.match(/\S+/g) ?? [];
+}
+function detok(tokens) {
+  return UNIT === "char" ? tokens.join("") : tokens.join(" ");
+}
+
+// --- Training ---
+function train(text) {
+  const t0 = performance.now();
+  const tokens = tokenize(text);
+  model = [];
+  for (let k = 0; k <= ORDER; k++) model.push(new Map());
+  for (let i = 0; i < tokens.length; i++) {
+    const tok = tokens[i];
+    for (let k = 0; k <= ORDER && k <= i; k++) {
+      const ctx = tokens.slice(i - k, i).join(SEP);
+      let dist = model[k].get(ctx);
+      if (!dist) { dist = new Map(); model[k].set(ctx, dist); }
+      dist.set(tok, (dist.get(tok) ?? 0) + 1);
+    }
+  }
+  const ms = (performance.now() - t0).toFixed(0);
+  document.getElementById("trainInfo").textContent =
+    `Trained on ${tokens.length.toLocaleString()} ${UNIT} tokens in ${ms} ms — ` +
+    `${model[ORDER].size.toLocaleString()} distinct contexts of length ${ORDER}.`;
+}
+
+// --- Prediction with backoff; returns {dist, ctxUsed: token array} ---
+function predict(ctxTokens) {
+  for (let k = Math.min(ORDER, ctxTokens.length); k >= 0; k--) {
+    const ctx = ctxTokens.slice(ctxTokens.length - k);
+    const dist = model[k].get(ctx.join(SEP));
+    if (dist && dist.size) return { dist, ctxUsed: ctx };
+  }
+  return { dist: new Map(), ctxUsed: [] };
+}
+
+function topK(dist, k) {
+  const total = [...dist.values()].reduce((a, b) => a + b, 0);
+  return [...dist.entries()]
+    .sort((a, b) => b[1] - a[1]).slice(0, k)
+    .map(([tok, c]) => [tok, c / total]);
+}
+
+function sample(dist, temperature) {
+  const entries = [...dist.entries()];
+  const weights = entries.map(([, c]) => Math.pow(c, 1 / Math.max(temperature, 0.01)));
+  const total = weights.reduce((a, b) => a + b, 0);
+  let r = Math.random() * total;
+  for (let i = 0; i < entries.length; i++) {
+    r -= weights[i];
+    if (r <= 0) return entries[i][0];
+  }
+  return entries[entries.length - 1][0];
+}
+
+const show = t => t === " " ? "␣" : t === "\n" ? "⏎" : t;
+const typed = document.getElementById("typed");
+
+function inputTokens() { return tokenize(typed.value); }
+
+// --- Live bars ---
+const barsDiv = document.getElementById("bars");
+function updateBars() {
+  const { dist, ctxUsed } = predict(inputTokens());
+  document.getElementById("ctxInfo").textContent = dist.size
+    ? `context used: "${detok(ctxUsed).replace(/ /g, "␣")}" (last ${ctxUsed.length} ${UNIT} token${ctxUsed.length === 1 ? "" : "s"})`
+    : "no prediction — type something that occurs in the training text";
+  barsDiv.innerHTML = "";
+  for (const [tok, p] of topK(dist, TOP_K)) {
+    const row = document.createElement("div");
+    row.className = "bar-row";
+    row.title = "click to accept this prediction";
+    const tokEl = document.createElement("span");
+    tokEl.className = "tok"; tokEl.textContent = show(tok);
+    const bg = document.createElement("div"); bg.className = "bar-bg";
+    const bar = document.createElement("div"); bar.className = "bar";
+    bar.style.width = (p * 100).toFixed(1) + "%";
+    bg.appendChild(bar);
+    const pct = document.createElement("span");
+    pct.className = "pct"; pct.textContent = (p * 100).toFixed(1) + "%";
+    row.append(tokEl, bg, pct);
+    row.onclick = () => {
+      typed.value += UNIT === "char" ? tok
+        : (typed.value && !/\s$/.test(typed.value) ? " " : "") + tok;
+      typed.focus();
+      updateBars();
+    };
+    barsDiv.appendChild(row);
+  }
+}
+
+// --- Streaming generation ---
+let genTimer = null;
+const genBtn = document.getElementById("generate");
+const genOut = document.getElementById("genOut");
+
+function stopGen() {
+  if (genTimer) { clearInterval(genTimer); genTimer = null; }
+  genBtn.textContent = "Generate continuation";
+}
+
+function generate() {
+  if (genTimer) { stopGen(); return; }
+  const temperature = document.getElementById("temp").value / 100;
+  const promptText = typed.value || (UNIT === "char" ? "The " : "The");
+  let tokens = tokenize(promptText);
+  const promptLen = tokens.length;
+  const maxNew = UNIT === "char" ? 400 : 80;
+
+  const promptSpan = document.createElement("span");
+  promptSpan.className = "prompt";
+  promptSpan.textContent = detok(tokens) + (UNIT === "word" ? " " : "");
+  const genSpan = document.createElement("span");
+  genOut.replaceChildren(promptSpan, genSpan);
+
+  genBtn.textContent = "Stop";
+  genTimer = setInterval(() => {
+    const { dist } = predict(tokens);
+    if (!dist.size || tokens.length - promptLen >= maxNew) { stopGen(); return; }
+    tokens.push(sample(dist, temperature));
+    genSpan.textContent = detok(tokens.slice(promptLen)) + (UNIT === "word" ? " " : "");
+  }, UNIT === "char" ? 18 : 70);
+}
+
+// --- Wiring ---
+document.getElementById("corpus").value = DEFAULT_CORPUS;
+
+function retrain() {
+  stopGen();
+  ORDER = parseInt(document.getElementById("order").value);
+  UNIT = document.querySelector('input[name="unit"]:checked').value;
+  document.getElementById("orderVal").textContent = ORDER;
+  train(document.getElementById("corpus").value);
+  updateBars();
+}
+
+document.getElementById("train").onclick = retrain;
+document.getElementById("order").oninput = retrain;
+for (const radio of document.querySelectorAll('input[name="unit"]'))
+  radio.onchange = retrain;
+typed.addEventListener("input", updateBars);
+genBtn.onclick = generate;
+const tempSlider = document.getElementById("temp");
+tempSlider.oninput = () =>
+  document.getElementById("tempVal").textContent = (tempSlider.value / 100).toFixed(2);
+
+retrain();
+</script>
+</body>
+</html>

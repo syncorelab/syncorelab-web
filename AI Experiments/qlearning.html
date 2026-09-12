@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Q-Learning Gridworld — Learning from Reward</title>
+<style>
+  html, body { margin: 0; background: #0a0a0a; color: #ddd;
+               font-family: -apple-system, "Segoe UI", sans-serif; }
+  #app { max-width: 920px; margin: 0 auto; padding: 16px 14px 40px; }
+  h1 { font-size: 20px; margin: 4px 0 2px; }
+  .sub { font-size: 13px; color: #888; margin-bottom: 12px; }
+  details { background: #161616; border: 1px solid #333; border-radius: 8px;
+            padding: 10px 14px; margin-bottom: 14px; font-size: 14px; line-height: 1.5; }
+  summary { cursor: pointer; color: #3ddc84; font-weight: 600; }
+  details p { color: #bbb; }
+  h2 { font-size: 15px; margin: 16px 0 6px; color: #aaa; }
+  .cols { display: flex; gap: 24px; flex-wrap: wrap; }
+  #world { border: 1px solid #333; border-radius: 6px; cursor: pointer; touch-action: none; }
+  button { background: #2d2d2d; color: #ddd; border: 1px solid #444; border-radius: 6px;
+           padding: 6px 14px; font-size: 13px; cursor: pointer; }
+  button:hover { background: #3a3a3a; }
+  button.primary { background: #1e3a2a; border-color: #2e5a40; }
+  button.primary:hover { background: #28503a; }
+  .row { display: flex; align-items: center; gap: 10px; margin: 8px 0; flex-wrap: wrap; }
+  .note { font-size: 12px; color: #777; }
+  label.opt { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #aaa; }
+  input[type=range] { width: 110px; }
+  .val { font-size: 13px; color: #aaa; min-width: 40px; font-variant-numeric: tabular-nums; }
+  #curve { border: 1px solid #333; border-radius: 6px; background: #111; }
+  #stats { font-size: 13px; color: #8fbf9f; font-family: ui-monospace, Menlo, monospace;
+           margin-top: 6px; white-space: pre; line-height: 1.6; }
+  #palette label { margin-right: 10px; }
+</style>
+<link rel="stylesheet" href="experiment-shell.css">
+<link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+</head>
+<body class="experiment-page">
+<a class="experiment-skip" href="#app">Skip to experiment</a>
+<header class="experiment-shell">
+  <a class="shell-brand" href="../index.html?skipIntro=1"><strong>SYN·CO·RE</strong> LAB</a>
+  <span class="shell-context">AI Experiment · PSY3230</span>
+  <nav class="shell-nav" aria-label="Experiment navigation"><a href="../index.html?skipIntro=1#experiments">&larr; Back to website</a><a href="../index.html?skipIntro=1#contact">Contact</a></nav>
+</header>
+<div id="app" tabindex="-1">
+  <h1>Q-Learning Gridworld</h1>
+  <div class="sub">An agent that knows nothing — not even that the goal exists — learns to
+    navigate purely from reward and punishment. Reinforcement learning is operant
+    conditioning, implemented.</div>
+
+  <details>
+    <summary>What is happening here?</summary>
+    <p>The agent sees only its current cell and four actions. After each move it receives
+    a number: −0.1 per step (effort), −10 for falling off the cliff, +10 at the goal.
+    From these numbers alone it builds <b>Q-values</b> — estimates of how much future
+    reward each action is worth in each cell. The update is driven by the
+    <b>prediction error</b>: the difference between the reward it expected and what it
+    got. Cells glow green as expected value propagates backwards from the goal,
+    step by step, episode by episode.</p>
+    <p>For a psychologist this is familiar territory: it is Thorndike's law of effect
+    made algorithmic, and the prediction-error term is the same quantity that midbrain
+    dopamine neurons appear to signal (Schultz et al., 1997). The
+    <b>ε slider</b> is the exploration–exploitation dilemma: with ε = 0 the agent
+    exploits what it knows and may never find a better route; with high ε it keeps
+    gambling — watch it hug the cliff less when ε is high, because one random step
+    near the edge is fatal.</p>
+    <p>Experiments to try: train the agent, then <b>move the goal</b> (edit mode) and
+    watch it persist with the old habit before relearning — extinction in action.
+    Wall off its favorite route. Set ε to 0 from the start and see it satisfice on the
+    first path it stumbles into.</p>
+  </details>
+
+  <div class="cols">
+    <div>
+      <canvas id="world"></canvas>
+      <div class="row" id="palette">
+        <span class="note">edit (click/drag on grid):</span>
+        <label class="opt"><input type="radio" name="tool" value="wall" checked> wall</label>
+        <label class="opt"><input type="radio" name="tool" value="pit"> cliff (−10)</label>
+        <label class="opt"><input type="radio" name="tool" value="goal"> goal (+10)</label>
+        <label class="opt"><input type="radio" name="tool" value="start"> start</label>
+        <label class="opt"><input type="radio" name="tool" value="erase"> erase</label>
+      </div>
+      <div class="row">
+        <button id="run" class="primary">Start learning</button>
+        <button id="trainFast">Train 200 episodes instantly</button>
+        <button id="resetQ">Reset learning</button>
+      </div>
+    </div>
+    <div>
+      <h2>Parameters</h2>
+      <div class="row"><label class="opt">speed
+        <input type="range" id="speed" min="0" max="100" value="55"><span class="val" id="speedVal"></span></label></div>
+      <div class="row"><label class="opt">ε exploration
+        <input type="range" id="eps" min="0" max="100" value="20"><span class="val" id="epsVal"></span></label></div>
+      <div class="row"><label class="opt">α learning rate
+        <input type="range" id="alpha" min="1" max="100" value="30"><span class="val" id="alphaVal"></span></label></div>
+      <div class="row"><label class="opt">γ discount
+        <input type="range" id="gamma" min="50" max="99" value="95"><span class="val" id="gammaVal"></span></label></div>
+      <h2>Learning curve <span class="note">(return per episode)</span></h2>
+      <canvas id="curve" width="300" height="110"></canvas>
+      <div id="stats"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+// --- World ---
+const COLS = 10, ROWS = 7, A = 4;          // actions: 0 up, 1 right, 2 down, 3 left
+const DR = [-1, 0, 1, 0], DC = [0, 1, 0, -1];
+const STEP_R = -0.1, PIT_R = -10, GOAL_R = 10;
+const DEFAULT_MAP = [
+  "..........",
+  "..........",
+  "....##....",
+  "....##....",
+  "..........",
+  "..........",
+  "SXXXXXXXXG",
+];
+
+let cell;            // Int8Array: 0 empty, 1 wall, 2 goal, 3 pit
+let startPos;        // index
+let Q;               // Float64Array COLS*ROWS*A
+let agent, epReturn, episode, totalSteps, lastTD, returns;
+
+function loadMap(rows) {
+  cell = new Int8Array(COLS * ROWS);
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++) {
+      const ch = rows[r][c];
+      const i = r * COLS + c;
+      if (ch === "#") cell[i] = 1;
+      else if (ch === "G") cell[i] = 2;
+      else if (ch === "X") cell[i] = 3;
+      else if (ch === "S") startPos = i;
+    }
+}
+
+function resetLearning() {
+  Q = new Float64Array(COLS * ROWS * A);
+  agent = startPos; epReturn = 0; episode = 0; totalSteps = 0; lastTD = 0;
+  returns = [];
+}
+
+// --- RL core: one Q-learning step; returns true if episode ended ---
+function qStep(eps, alpha, gamma) {
+  const s = agent;
+  // epsilon-greedy
+  let a;
+  if (Math.random() < eps) a = Math.floor(Math.random() * A);
+  else {
+    a = 0;
+    for (let k = 1; k < A; k++) if (Q[s * A + k] > Q[s * A + a]) a = k;
+  }
+  // transition
+  const r0 = Math.floor(s / COLS) + DR[a], c0 = s % COLS + DC[a];
+  let s2 = s;
+  if (r0 >= 0 && r0 < ROWS && c0 >= 0 && c0 < COLS && cell[r0 * COLS + c0] !== 1)
+    s2 = r0 * COLS + c0;
+  // reward & terminal
+  let r = STEP_R, done = false;
+  if (cell[s2] === 2) { r = GOAL_R; done = true; }
+  else if (cell[s2] === 3) { r = PIT_R; done = true; }
+  // TD update
+  let maxNext = 0;
+  if (!done) {
+    maxNext = Q[s2 * A];
+    for (let k = 1; k < A; k++) if (Q[s2 * A + k] > maxNext) maxNext = Q[s2 * A + k];
+  }
+  const td = r + gamma * maxNext - Q[s * A + a];
+  Q[s * A + a] += alpha * td;
+  lastTD = td;
+  epReturn += r;
+  totalSteps++;
+  agent = s2;
+  if (done || epReturn < -100) {           // -100: give up hopeless episodes
+    returns.push(epReturn);
+    if (returns.length > 400) returns.shift();
+    episode++;
+    agent = startPos;
+    epReturn = 0;
+    return true;
+  }
+  return false;
+}
+// --- end RL core ---
+
+function greedy(s) {
+  let a = 0;
+  for (let k = 1; k < A; k++) if (Q[s * A + k] > Q[s * A + a]) a = k;
+  return a;
+}
+function maxQ(s) {
+  let m = Q[s * A];
+  for (let k = 1; k < A; k++) if (Q[s * A + k] > m) m = Q[s * A + k];
+  return m;
+}
+
+// --- Rendering ---
+const canvas = document.getElementById("world");
+const CELL = 52;
+canvas.width = COLS * CELL; canvas.height = ROWS * CELL;
+const ctx = canvas.getContext("2d");
+
+function draw() {
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++) {
+      const i = r * COLS + c, x = c * CELL, y = r * CELL;
+      if (cell[i] === 1) ctx.fillStyle = "#3a3a3a";
+      else if (cell[i] === 2) ctx.fillStyle = "#1e4a2e";
+      else if (cell[i] === 3) ctx.fillStyle = "#4a1e1e";
+      else {
+        const v = maxQ(i);
+        if (v > 0) { const t = Math.min(1, v / GOAL_R); ctx.fillStyle = `rgb(${20+10*t}, ${26+90*t}, ${22+40*t})`; }
+        else if (v < 0) { const t = Math.min(1, -v / 5); ctx.fillStyle = `rgb(${26+70*t}, 20, 20)`; }
+        else ctx.fillStyle = "#161616";
+      }
+      ctx.fillRect(x + 1, y + 1, CELL - 2, CELL - 2);
+
+      if (cell[i] === 2 || cell[i] === 3) {
+        ctx.fillStyle = "#ddd"; ctx.font = "20px sans-serif";
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText(cell[i] === 2 ? "★" : "☠", x + CELL / 2, y + CELL / 2 + 1);
+      }
+      if (i === startPos) {
+        ctx.strokeStyle = "#3ddc84"; ctx.lineWidth = 1.5;
+        ctx.strokeRect(x + 4, y + 4, CELL - 8, CELL - 8);
+      }
+      // policy arrow
+      if (cell[i] === 0 && maxQ(i) !== 0) {
+        const a = greedy(i);
+        const cx = x + CELL / 2, cy = y + CELL / 2, L = 9;
+        ctx.strokeStyle = "rgba(221,221,221,.55)"; ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(cx - DC[a] * L, cy - DR[a] * L);
+        ctx.lineTo(cx + DC[a] * L, cy + DR[a] * L);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(cx + DC[a] * L, cy + DR[a] * L);
+        ctx.lineTo(cx + DC[a] * L - DC[a] * 5 - DR[a] * 4, cy + DR[a] * L - DR[a] * 5 - DC[a] * 4);
+        ctx.moveTo(cx + DC[a] * L, cy + DR[a] * L);
+        ctx.lineTo(cx + DC[a] * L - DC[a] * 5 + DR[a] * 4, cy + DR[a] * L - DR[a] * 5 + DC[a] * 4);
+        ctx.stroke();
+      }
+    }
+  // agent
+  const ar = Math.floor(agent / COLS), ac = agent % COLS;
+  ctx.fillStyle = "#3ddc84";
+  ctx.beginPath();
+  ctx.arc(ac * CELL + CELL / 2, ar * CELL + CELL / 2, CELL / 4.5, 0, 7);
+  ctx.fill();
+
+  document.getElementById("stats").textContent =
+    `episode ${episode}   steps ${totalSteps.toLocaleString()}\n` +
+    `last TD error (≈ dopamine signal): ${lastTD.toFixed(2)}\n` +
+    (returns.length ? `avg return (last 20): ${(returns.slice(-20).reduce((a,b)=>a+b,0) / Math.min(20, returns.length)).toFixed(1)}` : "");
+  drawCurve();
+}
+
+const curve = document.getElementById("curve");
+const cctx = curve.getContext("2d");
+function drawCurve() {
+  cctx.fillStyle = "#111"; cctx.fillRect(0, 0, curve.width, curve.height);
+  if (returns.length < 2) return;
+  const min = Math.min(...returns), max = Math.max(...returns), span = (max - min) || 1;
+  cctx.strokeStyle = "#3ddc84"; cctx.lineWidth = 1.5;
+  cctx.beginPath();
+  returns.forEach((v, i) => {
+    const x = 6 + i / (returns.length - 1) * (curve.width - 12);
+    const y = curve.height - 8 - (v - min) / span * (curve.height - 16);
+    i ? cctx.lineTo(x, y) : cctx.moveTo(x, y);
+  });
+  cctx.stroke();
+  // zero line
+  if (min < 0 && max > 0) {
+    const y0 = curve.height - 8 - (0 - min) / span * (curve.height - 16);
+    cctx.strokeStyle = "#333"; cctx.lineWidth = 1;
+    cctx.beginPath(); cctx.moveTo(6, y0); cctx.lineTo(curve.width - 6, y0); cctx.stroke();
+  }
+}
+
+// --- Parameters ---
+const $ = id => document.getElementById(id);
+const speedSteps = () => Math.round(Math.pow(10, $("speed").value / 100 * 2.7));  // 1..500/s
+const getEps = () => $("eps").value / 100;
+const getAlpha = () => $("alpha").value / 100;
+const getGamma = () => $("gamma").value / 100;
+function showVals() {
+  $("speedVal").textContent = speedSteps() + "/s";
+  $("epsVal").textContent = getEps().toFixed(2);
+  $("alphaVal").textContent = getAlpha().toFixed(2);
+  $("gammaVal").textContent = getGamma().toFixed(2);
+}
+for (const id of ["speed","eps","alpha","gamma"]) $(id).oninput = showVals;
+
+// --- Run loop ---
+let running = false, lastT = 0, acc = 0;
+function loop(t) {
+  if (!running) return;
+  const dt = Math.min((t - lastT) / 1000, 0.25);
+  lastT = t;
+  acc += dt * speedSteps();
+  let n = Math.floor(acc); acc -= n;
+  while (n-- > 0) qStep(getEps(), getAlpha(), getGamma());
+  draw();
+  requestAnimationFrame(loop);
+}
+$("run").onclick = () => {
+  running = !running;
+  $("run").textContent = running ? "Pause" : "Start learning";
+  if (running) { lastT = performance.now(); acc = 0; requestAnimationFrame(loop); }
+};
+$("trainFast").onclick = () => {
+  const target = episode + 200;
+  let guard = 0;
+  while (episode < target && guard++ < 400000) qStep(getEps(), getAlpha(), getGamma());
+  draw();
+};
+$("resetQ").onclick = () => { resetLearning(); draw(); };
+
+// --- Map editing ---
+let editing = false, editTool = null;
+canvas.addEventListener("pointerdown", e => { editing = true; edit(e); });
+canvas.addEventListener("pointermove", e => { if (editing) edit(e); });
+addEventListener("pointerup", () => editing = false);
+function edit(e) {
+  const rect = canvas.getBoundingClientRect();
+  const c = Math.floor((e.clientX - rect.left) / rect.width * COLS);
+  const r = Math.floor((e.clientY - rect.top) / rect.height * ROWS);
+  if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return;
+  const i = r * COLS + c;
+  const tool = document.querySelector('input[name="tool"]:checked').value;
+  if (tool === "start") { if (cell[i] === 0) { startPos = i; if (agent !== i) agent = startPos; } }
+  else if (tool === "erase") { if (i !== startPos) cell[i] = 0; }
+  else if (i !== startPos) cell[i] = { wall: 1, goal: 2, pit: 3 }[tool];
+  if (cell[agent] !== 0) agent = startPos;
+  draw();
+}
+
+// --- Init ---
+loadMap(DEFAULT_MAP);
+resetLearning();
+showVals();
+draw();
+</script>
+</body>
+</html>

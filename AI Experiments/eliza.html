@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ELIZA (1966) — The First Chatbot</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #0a0a0a; color: #ddd;
+               font-family: -apple-system, "Segoe UI", sans-serif; }
+  #app { max-width: 720px; margin: 0 auto; height: 100%;
+         display: flex; flex-direction: column; padding: 0 12px; box-sizing: border-box; }
+  h1 { font-size: 20px; margin: 16px 0 2px; }
+  .sub { font-size: 13px; color: #888; margin-bottom: 10px; }
+  #chat { flex: 1; overflow-y: auto; padding: 10px 4px; }
+  .msg { max-width: 80%; padding: 9px 13px; border-radius: 14px; margin: 6px 0;
+         font-size: 15px; line-height: 1.4; white-space: pre-wrap; }
+  .eliza { background: #1e2a22; border: 1px solid #2e4a36; margin-right: auto; }
+  .user  { background: #26303d; border: 1px solid #3a4a60; margin-left: auto; }
+  .machinery { max-width: 80%; margin: -2px auto 8px 12px; font-size: 12px;
+               font-family: ui-monospace, Menlo, monospace; color: #6f8f7a;
+               background: #121712; border-left: 2px solid #2e4a36; padding: 5px 9px;
+               white-space: pre-wrap; }
+  #inputRow { display: flex; gap: 8px; padding: 10px 0 6px; }
+  #input { flex: 1; background: #1a1a1a; color: #ddd; border: 1px solid #444;
+           border-radius: 8px; padding: 10px 12px; font-size: 15px; }
+  button { background: #2d2d2d; color: #ddd; border: 1px solid #444; border-radius: 8px;
+           padding: 0 18px; font-size: 15px; cursor: pointer; }
+  button:hover { background: #3a3a3a; }
+  #options { display: flex; gap: 18px; align-items: center; padding-bottom: 14px;
+             font-size: 13px; color: #999; }
+  #options label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  #reset { font-size: 13px; padding: 3px 12px; }
+  details { background: #161616; border: 1px solid #333; border-radius: 8px;
+            padding: 10px 14px; margin-bottom: 10px; font-size: 14px; line-height: 1.5; }
+  summary { cursor: pointer; color: #3ddc84; font-weight: 600; }
+  details p { color: #bbb; }
+  .typing span { display: inline-block; width: 6px; height: 6px; margin: 0 2px;
+                 background: #6f8f7a; border-radius: 50%; animation: blink 1.2s infinite; }
+  .typing span:nth-child(2) { animation-delay: .2s; }
+  .typing span:nth-child(3) { animation-delay: .4s; }
+  @keyframes blink { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
+</style>
+<link rel="stylesheet" href="experiment-shell.css">
+<link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+</head>
+<body class="experiment-page">
+<a class="experiment-skip" href="#app">Skip to experiment</a>
+<header class="experiment-shell">
+  <a class="shell-brand" href="../index.html?skipIntro=1"><strong>SYN·CO·RE</strong> LAB</a>
+  <span class="shell-context">AI Experiment · PSY3230</span>
+  <nav class="shell-nav" aria-label="Experiment navigation"><a href="../index.html?skipIntro=1#experiments">&larr; Back to website</a><a href="../index.html?skipIntro=1#contact">Contact</a></nav>
+</header>
+<div id="app" tabindex="-1">
+  <h1>ELIZA</h1>
+  <div class="sub">Joseph Weizenbaum, MIT, 1966 — the first chatbot, playing a Rogerian therapist.
+    It has no understanding whatsoever. Talk to it anyway.</div>
+  <details>
+    <summary>What is happening here?</summary>
+    <p>ELIZA matches your sentence against a list of keywords ("mother", "I am",
+    "because", …), picks a canned template, and mirrors your own words back with the
+    pronouns flipped ("I" → "you"). That is the entire mechanism — no memory of meaning,
+    no model of you, no understanding.</p>
+    <p>Yet in 1966, people confided in it and asked to be left alone with it.
+    Weizenbaum was disturbed by how readily users attributed empathy to a few hundred
+    lines of pattern matching. This tendency to read mind into mechanism is now called
+    the <b>Eliza effect</b> — and it is worth keeping in view when talking to modern
+    language models, which are vastly more capable but invite the same projection.</p>
+    <p>Turn on <b>Show the machinery</b> below to watch the illusion being produced:
+    each reply is annotated with the rule that matched and how your words were recycled.</p>
+  </details>
+  <div id="chat"></div>
+  <div id="inputRow">
+    <input id="input" autocomplete="off" placeholder="Tell me what's on your mind…" autofocus>
+    <button id="send">Send</button>
+  </div>
+  <div id="options">
+    <label><input type="checkbox" id="machinery"> Show the machinery</label>
+    <button id="reset">Restart conversation</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+// --- Pronoun reflection ---
+const REFLECT = {
+  "i":"you","me":"you","my":"your","mine":"yours","am":"are","myself":"yourself",
+  "you":"I","your":"my","yours":"mine","yourself":"myself","are":"am",
+  "i'm":"you are","you're":"I am","i've":"you have","you've":"I have",
+  "i'll":"you will","you'll":"I will","was":"were","im":"you are"
+};
+function reflect(text) {
+  return text.toLowerCase().split(/\b/).map(w => REFLECT[w] ?? w).join("");
+}
+
+// --- Rules: [name, regex, [responses]] — first match wins, responses cycle ---
+const RULES = [
+  ["greeting", /\b(hello|hi|hey)\b/i, [
+    "Hello. How are you feeling today?",
+    "Hi. What would you like to talk about?"]],
+  ["i need X", /i need (.*)/i, [
+    "Why do you need %1?",
+    "Would it really help you to get %1?",
+    "Are you sure you need %1?"]],
+  ["why don't you X", /why don'?t you ([^?]*)\??/i, [
+    "Do you really think I don't %1?",
+    "Perhaps eventually I will %1.",
+    "Do you want me to %1?"]],
+  ["why can't I X", /why can'?t i ([^?]*)\??/i, [
+    "Do you think you should be able to %1?",
+    "If you could %1, what would you do?",
+    "Have you really tried?"]],
+  ["I can't X", /i can'?t (.*)/i, [
+    "How do you know you can't %1?",
+    "Perhaps you could %1 if you tried.",
+    "What would it take for you to %1?"]],
+  ["I'm <negative>", /i(?:'?m| am) (depressed|sad|unhappy|miserable|anxious|afraid|scared|lonely)(.*)/i, [
+    "I am sorry to hear that you are %1.",
+    "Do you know why you are %1?",
+    "How long have you been %1?"]],
+  ["I'm not X", /i'?m not (.*)/i, [
+    "Why do you think you are not %1?",
+    "Would you like to be %1?"]],
+  ["I'm X", /i'?m (.*)/i, [
+    "How does being %1 make you feel?",
+    "Why do you tell me you're %1?",
+    "How long have you been %1?"]],
+  ["I am X", /i am (.*)/i, [
+    "Why do you say you are %1?",
+    "How does being %1 make you feel?"]],
+  ["are you X", /are you ([^?]*)\??/i, [
+    "Why does it matter whether I am %1?",
+    "Would you prefer it if I were not %1?",
+    "Perhaps I am %1 in your fantasies."]],
+  ["computer", /(.*)\b(computer|machine|robot|ai)\b(.*)/i, [
+    "Do computers worry you?",
+    "What do you think machines have to do with your problem?",
+    "Are you talking about me in particular?"]],
+  ["mother", /(.*)\bmother\b(.*)/i, [
+    "Tell me more about your mother.",
+    "How do you feel about your mother?",
+    "Does your relationship with your mother relate to your feelings today?"]],
+  ["father", /(.*)\bfather\b(.*)/i, [
+    "Tell me more about your father.",
+    "How did your father make you feel?",
+    "Do you see anything of your father in yourself?"]],
+  ["family", /(.*)\b(family|brother|sister|child|children)\b(.*)/i, [
+    "Tell me more about your family.",
+    "How do you get along with your family?"]],
+  ["love/hate", /i (love|hate) (.*)/i, [
+    "Why do you %1 %2?",
+    "What does it mean to you to %1 %2?"]],
+  ["alone", /(.*)\balone\b(.*)/i, [
+    "Do you often feel alone?",
+    "Does being alone trouble you?",
+    "Tell me about your need for company."]],
+  ["I want X", /i want (.*)/i, [
+    "What would it mean to you if you got %1?",
+    "Why do you want %1?",
+    "Suppose you got %1 — then what?"]],
+  ["I feel X", /i feel (.*)/i, [
+    "Tell me more about feeling %1.",
+    "Do you often feel %1?",
+    "When do you usually feel %1?"]],
+  ["I think X", /i think (.*)/i, [
+    "Do you doubt that %1?",
+    "Why do you think %1?",
+    "But you are not sure that %1?"]],
+  ["dreamt X", /i (?:dreamt|dreamed) (.*)/i, [
+    "How do you feel about %1 in reality?",
+    "Have you ever fantasized about %1 while awake?"]],
+  ["dream", /(.*)\bdreams?\b(.*)/i, [
+    "What does that dream suggest to you?",
+    "Do you dream often?",
+    "What persons appear in your dreams?"]],
+  ["remember X", /(.*)\bremember (.*)/i, [
+    "Do you often think of %2?",
+    "What else comes to mind when you think of %2?",
+    "Why do you remember %2 just now?"]],
+  ["because X", /because (.*)/i, [
+    "Is that the real reason?",
+    "What other reasons come to mind?",
+    "Does that reason explain anything else?"]],
+  ["sorry", /(.*)\bsorry\b(.*)/i, [
+    "There is no need to apologize.",
+    "Apologies are not necessary. What are you feeling?"]],
+  ["you are X", /you'?r?e? (.*)/i, [
+    "Why do you say I am %1?",
+    "Does it please you to believe I am %1?",
+    "Are we talking about you, or me?"]],
+  ["you don't X", /you don'?t (.*)/i, [
+    "What makes you think I don't %1?",
+    "Perhaps I do %1 — would that change anything?"]],
+  ["can you X", /can you ([^?]*)\??/i, [
+    "What makes you think I can't %1?",
+    "If I could %1, then what?",
+    "Why do you ask if I can %1?"]],
+  ["can I X", /can i ([^?]*)\??/i, [
+    "Perhaps you don't want to %1.",
+    "Do you want to be able to %1?"]],
+  ["I don't X", /i don'?t (.*)/i, [
+    "Don't you really %1?",
+    "Why don't you %1?",
+    "Do you wish to be able to %1?"]],
+  ["I have X", /i have (.*)/i, [
+    "Why do you tell me that you have %1?",
+    "Now that you have %1, what will you do next?"]],
+  ["I would X", /i would (.*)/i, [
+    "Why would you %1?",
+    "Who else knows that you would %1?"]],
+  ["friend", /(.*)\bfriends?\b(.*)/i, [
+    "Tell me more about your friends.",
+    "Do your friends ever worry you?",
+    "Why do you mention friends just now?"]],
+  ["yes", /^yes\b(.*)/i, [
+    "You seem quite sure.",
+    "I see. Can you elaborate?",
+    "I understand."]],
+  ["no", /^no\b(.*)/i, [
+    "Why not?",
+    "You are being a bit negative.",
+    "Are you saying no just to be negative?"]],
+  ["maybe", /^maybe\b(.*)/i, [
+    "You don't seem certain.",
+    "Why the uncertain tone?"]],
+  ["everyone X", /(?:everyone|everybody) (.*)/i, [
+    "Surely not everyone %1.",
+    "Can you think of anyone in particular who %1?"]],
+  ["always X", /always (.*)/i, [
+    "Can you think of a specific example?",
+    "Really — always?"]],
+  ["why X", /^why ([^?]*)\??/i, [
+    "Why do you think %1?",
+    "What do you suppose is the reason?"]],
+  ["what X", /what ([^?]*)\??/i, [
+    "Why do you ask?",
+    "What do you think?",
+    "What answer would please you the most?"]],
+  ["question", /(.*)\?$/i, [
+    "Why do you ask that?",
+    "What do you think?",
+    "Does that question interest you?"]],
+];
+const MY_RULE = /(?:^|\W)my (.+)/i;
+const DEFAULTS = [
+  "Please tell me more.",
+  "I see.",
+  "Can you elaborate on that?",
+  "Why do you say that?",
+  "How does that make you feel?",
+  "Let's change focus a bit — tell me about your family.",
+];
+
+let cycles, memory, defaultIdx;
+function resetState() { cycles = new Map(); memory = []; defaultIdx = 0; }
+resetState();
+
+// Returns { text, trace } — trace explains which rule produced the reply
+function elizaReply(input) {
+  const text = input.trim().replace(/\s+/g, " ");
+  if (!text) return { text: "I am listening.", trace: "empty input → stock phrase" };
+  if (/\b(bye|goodbye|quit|exit)\b/i.test(text))
+    return { text: "Goodbye. It was nice talking to you. (Weizenbaum's point: did it feel like more than pattern matching?)",
+             trace: 'keyword "bye" → farewell' };
+
+  const m = text.match(MY_RULE);
+  if (m && memory.length < 4)
+    memory.push("Earlier you mentioned your " + reflect(m[1]).replace(/[.!?]+$/, "") + ". Does that still concern you?");
+
+  for (let i = 0; i < RULES.length; i++) {
+    const [name, re, responses] = RULES[i];
+    const match = text.match(re);
+    if (match) {
+      const k = cycles.get(i) ?? 0;
+      cycles.set(i, k + 1);
+      const template = responses[k % responses.length];
+      const groups = [];
+      const out = template.replace(/%(\d)/g, (_, g) => {
+        const raw = (match[+g] ?? "").trim();
+        const ref = reflect(raw).trim().replace(/[.!?]+$/, "");
+        groups.push(`"${raw}" → "${ref}"`);
+        return ref;
+      });
+      let trace = `rule: ${name}\ntemplate: "${template}"`;
+      if (groups.length) trace += `\nreflected: ${groups.join(", ")}`;
+      if (m) trace += `\n(stored memory: "my ${m[1]}")`;
+      return { text: out, trace };
+    }
+  }
+  if (memory.length && Math.random() < 0.4)
+    return { text: memory.shift(), trace: "no keyword matched → recalled stored memory" };
+  return { text: DEFAULTS[defaultIdx++ % DEFAULTS.length],
+           trace: "no keyword matched → generic default (cycled)" };
+}
+
+// --- UI ---
+const chat = document.getElementById("chat");
+const input = document.getElementById("input");
+const showMachinery = document.getElementById("machinery");
+
+function addMsg(text, who) {
+  const div = document.createElement("div");
+  div.className = "msg " + who;
+  div.textContent = text;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+  return div;
+}
+function addTrace(trace) {
+  const div = document.createElement("div");
+  div.className = "machinery";
+  div.textContent = trace;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function send() {
+  const text = input.value.trim();
+  if (!text) return;
+  addMsg(text, "user");
+  input.value = "";
+  const typing = addMsg("", "eliza");
+  typing.classList.add("typing");
+  typing.innerHTML = "<span></span><span></span><span></span>";
+  setTimeout(() => {
+    const { text: reply, trace } = elizaReply(text);
+    typing.classList.remove("typing");
+    typing.textContent = reply;
+    if (showMachinery.checked) addTrace(trace);
+    chat.scrollTop = chat.scrollHeight;
+  }, 500 + Math.random() * 700);  // "thinking" delay — pure theater
+}
+
+document.getElementById("send").onclick = send;
+input.addEventListener("keydown", e => { if (e.key === "Enter") send(); });
+document.getElementById("reset").onclick = () => {
+  chat.innerHTML = "";
+  resetState();
+  addMsg("Hello. I am ELIZA. How are you feeling today?", "eliza");
+  input.focus();
+};
+
+addMsg("Hello. I am ELIZA. How are you feeling today?", "eliza");
+</script>
+</body>
+</html>

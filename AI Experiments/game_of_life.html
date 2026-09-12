@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Conway's Game of Life</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #0a0a0a; color: #ddd;
+               font-family: -apple-system, "Segoe UI", sans-serif; overflow: hidden; }
+  #bar { display: flex; align-items: center; gap: 14px; padding: 8px 12px;
+         background: #1a1a1a; flex-wrap: wrap; }
+  #bar label { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+  button { background: #2d2d2d; color: #ddd; border: 1px solid #444; border-radius: 5px;
+           padding: 5px 14px; font-size: 13px; cursor: pointer; }
+  button:hover { background: #3a3a3a; }
+  #start { min-width: 70px; }
+  input[type=range] { width: 140px; }
+  .val { min-width: 48px; font-variant-numeric: tabular-nums; }
+  #stats { margin-left: auto; font-size: 13px; font-variant-numeric: tabular-nums; color: #999; }
+  #wrap { display: flex; justify-content: center; align-items: center;
+          height: calc(100% - 46px); }
+  canvas { image-rendering: pixelated; }
+</style>
+<link rel="stylesheet" href="experiment-shell.css">
+<link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+</head>
+<body class="experiment-page game-life-page">
+<a class="experiment-skip" href="#bar">Skip to experiment</a>
+<header class="experiment-shell">
+  <a class="shell-brand" href="../index.html?skipIntro=1"><strong>SYN·CO·RE</strong> LAB</a>
+  <span class="shell-context">AI Experiment · PSY3230</span>
+  <nav class="shell-nav" aria-label="Experiment navigation"><a href="../index.html?skipIntro=1#experiments">&larr; Back to website</a><a href="../index.html?skipIntro=1#contact">Contact</a></nav>
+</header>
+<div id="bar" tabindex="-1">
+  <button id="start">Start</button>
+  <button id="random">Random fill</button>
+  <button id="clear">Clear</button>
+  <label>Pattern
+    <select id="pattern">
+      <option value="">— insert —</option>
+      <option value="glider">Glider</option>
+      <option value="gun">Gosper glider gun</option>
+      <option value="pulsar">Pulsar</option>
+      <option value="rpentomino">R-pentomino</option>
+      <option value="acorn">Acorn</option>
+    </select>
+  </label>
+  <label>Grid size <input type="range" id="size" min="50" max="2000" step="50" value="500">
+    <span class="val" id="sizeVal"></span></label>
+  <label>Speed <input type="range" id="speed" min="0" max="100" value="40">
+    <span class="val" id="speedVal"></span></label>
+  <span id="stats"></span>
+</div>
+<div id="wrap"><canvas id="canvas"></canvas></div>
+
+<script>
+"use strict";
+
+const ALIVE = [61, 220, 132], DEAD = [17, 17, 17];
+const FILL = 0.25;
+
+let n = 500;
+let grid, next;            // Uint8Array of n*n
+let padded;                // Uint8Array of (n+2)*(n+2) for wrap-around
+let generation = 0;
+let running = false;
+let lastTime = 0, acc = 0;
+let measured = 0;          // measured generations/sec
+
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+const off = document.createElement("canvas");
+const offCtx = off.getContext("2d");
+let img;
+
+// --- Speed slider: logarithmic, 1 .. 10000 gen/s ---
+function targetGps() {
+  const t = document.getElementById("speed").value / 100; // 0..1
+  return Math.round(Math.pow(10, t * 4));                 // 1 .. 10000
+}
+
+// --- Grid setup ---
+function allocate(size) {
+  n = size;
+  grid = new Uint8Array(n * n);
+  next = new Uint8Array(n * n);
+  padded = new Uint8Array((n + 2) * (n + 2));
+  generation = 0;
+  off.width = n; off.height = n;
+  img = offCtx.createImageData(n, n);
+  // Pre-fill alpha and dead color
+  const d = img.data;
+  for (let i = 0; i < n * n; i++) {
+    d[i * 4] = DEAD[0]; d[i * 4 + 1] = DEAD[1]; d[i * 4 + 2] = DEAD[2]; d[i * 4 + 3] = 255;
+  }
+  fitCanvas();
+  draw();
+}
+
+function fitCanvas() {
+  const headerHeight = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--shell-h")) || 0;
+  const controlsHeight = document.getElementById("bar").offsetHeight;
+  const side = Math.max(160, Math.min(window.innerWidth - 16, window.innerHeight - headerHeight - controlsHeight - 16));
+  canvas.width = side; canvas.height = side;
+  ctx.imageSmoothingEnabled = false;
+  draw();
+}
+
+function randomFill() {
+  for (let i = 0; i < n * n; i++) grid[i] = Math.random() < FILL ? 1 : 0;
+  generation = 0;
+  draw();
+}
+
+// --- Simulation: copy into padded array with wrapped borders, then no-modulo loop ---
+function step() {
+  const p = n + 2;
+  // interior
+  for (let r = 0; r < n; r++)
+    padded.set(grid.subarray(r * n, r * n + n), (r + 1) * p + 1);
+  // wrapped rows
+  padded.set(grid.subarray((n - 1) * n, n * n), 1);            // top border = last row
+  padded.set(grid.subarray(0, n), (n + 1) * p + 1);            // bottom border = first row
+  // wrapped columns + corners
+  for (let r = 0; r < p; r++) {
+    padded[r * p] = padded[r * p + n];                         // left border = right col
+    padded[r * p + n + 1] = padded[r * p + 1];                 // right border = left col
+  }
+  for (let r = 0; r < n; r++) {
+    const r0 = r * p, r1 = (r + 1) * p, r2 = (r + 2) * p, o = r * n;
+    for (let c = 0; c < n; c++) {
+      const sum =
+        padded[r0 + c] + padded[r0 + c + 1] + padded[r0 + c + 2] +
+        padded[r1 + c] +                      padded[r1 + c + 2] +
+        padded[r2 + c] + padded[r2 + c + 1] + padded[r2 + c + 2];
+      const alive = padded[r1 + c + 1];
+      next[o + c] = (sum === 3 || (alive === 1 && sum === 2)) ? 1 : 0;
+    }
+  }
+  [grid, next] = [next, grid];
+  generation++;
+}
+
+// --- Rendering ---
+function draw() {
+  if (!img) return;
+  const d = img.data;
+  for (let i = 0; i < n * n; i++) {
+    const j = i * 4;
+    if (grid[i]) { d[j] = ALIVE[0]; d[j + 1] = ALIVE[1]; d[j + 2] = ALIVE[2]; }
+    else         { d[j] = DEAD[0];  d[j + 1] = DEAD[1];  d[j + 2] = DEAD[2];  }
+  }
+  offCtx.putImageData(img, 0, 0);
+  ctx.drawImage(off, 0, 0, canvas.width, canvas.height);
+  document.getElementById("stats").textContent =
+    `Gen ${generation.toLocaleString()}` + (running ? ` — ${measured.toLocaleString()} gen/s` : "");
+}
+
+// --- Main loop ---
+let genCount = 0, measureStart = performance.now();
+function loop(t) {
+  if (!running) return;
+  const dt = Math.min((t - lastTime) / 1000, 0.25);
+  lastTime = t;
+  acc += dt * targetGps();
+  let steps = Math.floor(acc);
+  acc -= steps;
+  // cap work per frame to stay responsive
+  const budget = performance.now() + 30;
+  while (steps-- > 0 && performance.now() < budget) { step(); genCount++; }
+  if (t - measureStart > 500) {
+    measured = Math.round(genCount / ((t - measureStart) / 1000));
+    genCount = 0; measureStart = t;
+  }
+  draw();
+  requestAnimationFrame(loop);
+}
+
+// --- Patterns ([row, col] offsets) ---
+const PATTERNS = {
+  glider: [[0,1],[1,2],[2,0],[2,1],[2,2]],
+  gun: [[0,24],[1,22],[1,24],[2,12],[2,13],[2,20],[2,21],[2,34],[2,35],
+        [3,11],[3,15],[3,20],[3,21],[3,34],[3,35],[4,0],[4,1],[4,10],[4,16],
+        [4,20],[4,21],[5,0],[5,1],[5,10],[5,14],[5,16],[5,17],[5,22],[5,24],
+        [6,10],[6,16],[6,24],[7,11],[7,15],[8,12],[8,13]],
+  pulsar: [[0,2],[0,3],[0,4],[0,8],[0,9],[0,10],[2,0],[2,5],[2,7],[2,12],
+           [3,0],[3,5],[3,7],[3,12],[4,0],[4,5],[4,7],[4,12],
+           [5,2],[5,3],[5,4],[5,8],[5,9],[5,10],[7,2],[7,3],[7,4],[7,8],[7,9],[7,10],
+           [8,0],[8,5],[8,7],[8,12],[9,0],[9,5],[9,7],[9,12],
+           [10,0],[10,5],[10,7],[10,12],[12,2],[12,3],[12,4],[12,8],[12,9],[12,10]],
+  rpentomino: [[0,1],[0,2],[1,0],[1,1],[2,1]],
+  acorn: [[0,1],[1,3],[2,0],[2,1],[2,4],[2,5],[2,6]],
+};
+
+function clearGrid() {
+  grid.fill(0);
+  generation = 0;
+  draw();
+}
+
+function insertPattern(name) {
+  const cells = PATTERNS[name];
+  if (!cells) return;
+  clearGrid();
+  const h = Math.max(...cells.map(c => c[0])) + 1;
+  const w = Math.max(...cells.map(c => c[1])) + 1;
+  // Glider gun: place top-left so the glider stream has room; others centered
+  const r0 = name === "gun" ? Math.floor(n / 8) : Math.floor((n - h) / 2);
+  const c0 = name === "gun" ? Math.floor(n / 8) : Math.floor((n - w) / 2);
+  for (const [r, c] of cells) grid[((r0 + r) % n) * n + ((c0 + c) % n)] = 1;
+  draw();
+}
+
+// --- Controls ---
+const startBtn = document.getElementById("start");
+function toggle() {
+  running = !running;
+  startBtn.textContent = running ? "Pause" : "Start";
+  if (running) { lastTime = performance.now(); acc = 0; genCount = 0;
+                 measureStart = lastTime; requestAnimationFrame(loop); }
+  else draw();
+}
+startBtn.onclick = toggle;
+document.getElementById("random").onclick = randomFill;
+document.getElementById("clear").onclick = clearGrid;
+document.getElementById("pattern").onchange = e => {
+  insertPattern(e.target.value);
+  e.target.value = "";
+};
+document.addEventListener("keydown", e => {
+  if (e.code === "Space") { e.preventDefault(); toggle(); }
+});
+
+const sizeSlider = document.getElementById("size");
+sizeSlider.oninput = () => {
+  document.getElementById("sizeVal").textContent = sizeSlider.value;
+  allocate(parseInt(sizeSlider.value));
+  randomFill();
+};
+
+const speedSlider = document.getElementById("speed");
+function showSpeed() {
+  document.getElementById("speedVal").textContent = targetGps().toLocaleString();
+}
+speedSlider.oninput = showSpeed;
+
+window.onresize = fitCanvas;
+
+// --- Init ---
+document.getElementById("sizeVal").textContent = sizeSlider.value;
+showSpeed();
+allocate(n);
+randomFill();
+</script>
+</body>
+</html>

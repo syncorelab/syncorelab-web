@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Perceptron — Watching a Network Learn to See</title>
+<style>
+  html, body { margin: 0; background: #0a0a0a; color: #ddd;
+               font-family: -apple-system, "Segoe UI", sans-serif; }
+  #app { max-width: 980px; margin: 0 auto; padding: 16px 14px 40px; }
+  h1 { font-size: 20px; margin: 4px 0 2px; }
+  .sub { font-size: 13px; color: #888; margin-bottom: 12px; }
+  details { background: #161616; border: 1px solid #333; border-radius: 8px;
+            padding: 10px 14px; margin-bottom: 14px; font-size: 14px; line-height: 1.5; }
+  summary { cursor: pointer; color: #3ddc84; font-weight: 600; }
+  details p { color: #bbb; }
+  h2 { font-size: 14px; margin: 14px 0 6px; color: #aaa; }
+  .cols { display: flex; gap: 22px; flex-wrap: wrap; align-items: flex-start; }
+  canvas { border: 1px solid #333; border-radius: 6px; }
+  #retina { cursor: crosshair; touch-action: none; }
+  button { background: #2d2d2d; color: #ddd; border: 1px solid #444; border-radius: 6px;
+           padding: 6px 13px; font-size: 13px; cursor: pointer; }
+  button:hover { background: #3a3a3a; }
+  button.primary { background: #1e3a2a; border-color: #2e5a40; }
+  button.primary:hover { background: #28503a; }
+  .row { display: flex; align-items: center; gap: 8px; margin: 8px 0; flex-wrap: wrap; }
+  .note { font-size: 12px; color: #777; }
+  label.opt { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #aaa; }
+  input[type=range] { width: 110px; }
+  .val { font-size: 13px; color: #aaa; min-width: 38px; font-variant-numeric: tabular-nums; }
+  #stats { font-size: 13px; color: #8fbf9f; font-family: ui-monospace, Menlo, monospace;
+           white-space: pre; line-height: 1.6; margin-top: 6px; }
+  #fields { display: flex; gap: 12px; }
+  .field { text-align: center; font-size: 13px; color: #aaa; }
+  .field canvas { margin-top: 4px; }
+</style>
+<link rel="stylesheet" href="experiment-shell.css">
+<link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+</head>
+<body class="experiment-page">
+<a class="experiment-skip" href="#app">Skip to experiment</a>
+<header class="experiment-shell">
+  <a class="shell-brand" href="../index.html?skipIntro=1"><strong>SYN·CO·RE</strong> LAB</a>
+  <span class="shell-context">AI Experiment · PSY3230</span>
+  <nav class="shell-nav" aria-label="Experiment navigation"><a href="../index.html?skipIntro=1#experiments">&larr; Back to website</a><a href="../index.html?skipIntro=1#contact">Contact</a></nav>
+</header>
+<div id="app" tabindex="-1">
+  <h1>Perceptron</h1>
+  <div class="sub">Frank Rosenblatt, 1958 — the first learning machine for vision, and the
+    ancestor of every deep network. Watch its connections rewire as it learns to
+    recognize shapes.</div>
+
+  <details>
+    <summary>What is happening here?</summary>
+    <p>The 5×5 grid is a retina; every pixel is connected to all three output neurons
+    (+, ×, ○). A connection's strength is drawn as a line — <span style="color:#3ddc84">
+    green excitatory</span>, <span style="color:#e05555">red inhibitory</span>, thickness
+    = strength. Classifying is one step: each output neuron sums its weighted inputs,
+    loudest wins. Learning is one rule: when the network is wrong, strengthen the
+    connections from active pixels to the correct neuron, weaken them to the one that
+    answered. Rosenblatt proved this converges whenever a correct weighting exists.</p>
+    <p>Watch the weight maps on the right while it trains: each neuron's weights become
+    a <b>template of its shape</b> — a receptive field, much like those Hubel and Wiesel
+    were recording from visual cortex in the same years. Nobody draws the template;
+    it precipitates out of corrections. After training, draw on the retina yourself —
+    a sloppy ×, a half ○ — and see whether the network generalizes.</p>
+    <p>And its limits are as instructive as its powers: a single layer can only learn
+    categories a straight boundary can separate (Minsky &amp; Papert, 1969 — the critique
+    that froze the field for a decade). The fix — stacking perceptrons and propagating
+    the error backwards — is, at heart, the deep learning behind today's AI.</p>
+  </details>
+
+  <div class="cols">
+    <div>
+      <h2>Retina (draw here)</h2>
+      <canvas id="retina"></canvas>
+      <div class="row">
+        <button id="clear">Clear</button>
+        <span class="note">load:</span><span id="protoBtns"></span>
+      </div>
+      <div class="row">
+        <span class="note">teach current drawing as:</span><span id="teachBtns"></span>
+      </div>
+      <div class="row">
+        <button id="auto" class="primary">Auto-train</button>
+        <button id="resetW">Reset weights</button>
+      </div>
+      <div class="row">
+        <label class="opt">noise
+          <input type="range" id="noise" min="0" max="35" value="12">
+          <span class="val" id="noiseVal">12%</span></label>
+        <label class="opt">learning rate
+          <input type="range" id="lr" min="1" max="100" value="15">
+          <span class="val" id="lrVal">0.15</span></label>
+      </div>
+      <div id="stats"></div>
+    </div>
+    <div>
+      <h2>The network — connections change as it learns</h2>
+      <canvas id="net" width="430" height="360"></canvas>
+      <h2>What each neuron looks for (its weights as an image)</h2>
+      <div id="fields"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+// --- Net core ---
+const SIDE = 5, NPIX = SIDE * SIDE;
+const CLASSES = ["+", "×", "○"];
+const NC = CLASSES.length;
+const PROTOS = [
+  ["..#..","..#..","#####","..#..","..#.."],
+  ["#...#",".#.#.","..#..",".#.#.","#...#"],
+  [".###.","#...#","#...#","#...#",".###."],
+].map(rows => Float64Array.from(rows.join(""), ch => ch === "#" ? 1 : 0));
+
+let W = [];                       // NC x (NPIX+1), last = bias
+function resetWeights() {
+  W = Array.from({ length: NC }, () =>
+    Float64Array.from({ length: NPIX + 1 }, () => (Math.random() - 0.5) * 0.01));
+}
+
+function scores(x) {
+  return W.map(w => {
+    let s = w[NPIX];
+    for (let i = 0; i < NPIX; i++) s += w[i] * x[i];
+    return s;
+  });
+}
+const argmax = a => a.indexOf(Math.max(...a));
+
+// Multi-class perceptron rule; returns true if prediction was correct
+function teach(x, label, lr) {
+  const pred = argmax(scores(x));
+  if (pred === label) return true;
+  for (let i = 0; i < NPIX; i++) {
+    W[label][i] += lr * x[i];
+    W[pred][i]  -= lr * x[i];
+  }
+  W[label][NPIX] += lr;
+  W[pred][NPIX]  -= lr;
+  return false;
+}
+
+function noisy(proto, p) {
+  const x = Float64Array.from(proto);
+  for (let i = 0; i < NPIX; i++) if (Math.random() < p) x[i] = 1 - x[i];
+  return x;
+}
+
+function accuracy(p, trials) {
+  let ok = 0;
+  for (let t = 0; t < trials; t++) {
+    const c = t % NC;
+    if (argmax(scores(noisy(PROTOS[c], p))) === c) ok++;
+  }
+  return ok / trials;
+}
+// --- end core ---
+
+// --- State ---
+let pixels = Float64Array.from(PROTOS[0]);
+let seen = 0, errors = 0, lastMsg = "";
+resetWeights();
+
+// --- Retina ---
+const retina = document.getElementById("retina");
+const RC = 46;
+retina.width = retina.height = SIDE * RC;
+const rctx = retina.getContext("2d");
+function drawRetina() {
+  for (let i = 0; i < NPIX; i++) {
+    rctx.fillStyle = pixels[i] ? "#3ddc84" : "#1a1a1a";
+    rctx.fillRect((i % SIDE) * RC + 1, Math.floor(i / SIDE) * RC + 1, RC - 2, RC - 2);
+  }
+}
+let painting = false, paintVal = 1;
+function pixAt(e) {
+  const r = retina.getBoundingClientRect();
+  const c = Math.floor((e.clientX - r.left) / r.width * SIDE);
+  const row = Math.floor((e.clientY - r.top) / r.height * SIDE);
+  return (c >= 0 && c < SIDE && row >= 0 && row < SIDE) ? row * SIDE + c : -1;
+}
+retina.addEventListener("pointerdown", e => {
+  const i = pixAt(e); if (i < 0) return;
+  painting = true; paintVal = pixels[i] ? 0 : 1; pixels[i] = paintVal;
+  refresh();
+});
+retina.addEventListener("pointermove", e => {
+  if (!painting) return;
+  const i = pixAt(e);
+  if (i >= 0 && pixels[i] !== paintVal) { pixels[i] = paintVal; refresh(); }
+});
+addEventListener("pointerup", () => painting = false);
+
+// --- Network drawing ---
+const net = document.getElementById("net");
+const nctx = net.getContext("2d");
+const IN_X = 60, OUT_X = 360;
+function inPos(i) {
+  const r = Math.floor(i / SIDE), c = i % SIDE;
+  return [IN_X + c * 14 - 28, 40 + r * 64 + c * 3];
+}
+const outPos = c => [OUT_X, 70 + c * 110];
+
+function drawNet() {
+  nctx.fillStyle = "#0f0f0f";
+  nctx.fillRect(0, 0, net.width, net.height);
+  const sc = scores(pixels);
+  const pred = argmax(sc);
+  const maxW = Math.max(0.2, ...W.map(w => Math.max(...w.slice(0, NPIX).map(Math.abs))));
+
+  // connections
+  for (let c = 0; c < NC; c++) {
+    const [ox, oy] = outPos(c);
+    for (let i = 0; i < NPIX; i++) {
+      const w = W[c][i];
+      const [ix, iy] = inPos(i);
+      const mag = Math.abs(w) / maxW;
+      if (mag < 0.04) continue;
+      nctx.strokeStyle = w > 0
+        ? `rgba(61,220,132,${0.12 + 0.65 * mag})`
+        : `rgba(224,85,85,${0.12 + 0.65 * mag})`;
+      nctx.lineWidth = 0.4 + 2.6 * mag;
+      nctx.beginPath();
+      nctx.moveTo(ix + 6, iy);
+      nctx.lineTo(ox - 16, oy);
+      nctx.stroke();
+    }
+  }
+  // input nodes
+  for (let i = 0; i < NPIX; i++) {
+    const [x, y] = inPos(i);
+    nctx.fillStyle = pixels[i] ? "#3ddc84" : "#2a2a2a";
+    nctx.beginPath(); nctx.arc(x, y, 5, 0, 7); nctx.fill();
+  }
+  // output neurons
+  const lo = Math.min(...sc), span = (Math.max(...sc) - lo) || 1;
+  for (let c = 0; c < NC; c++) {
+    const [x, y] = outPos(c);
+    const act = (sc[c] - lo) / span;
+    nctx.fillStyle = c === pred ? "#1e4a2e" : "#1c1c1c";
+    nctx.strokeStyle = c === pred ? "#3ddc84" : "#444";
+    nctx.lineWidth = 2;
+    nctx.beginPath(); nctx.arc(x, y, 15, 0, 7); nctx.fill(); nctx.stroke();
+    nctx.fillStyle = "#ddd"; nctx.font = "15px sans-serif";
+    nctx.textAlign = "center"; nctx.textBaseline = "middle";
+    nctx.fillText(CLASSES[c], x, y + 1);
+    // activation bar
+    nctx.fillStyle = "#181818";
+    nctx.fillRect(x + 24, y - 7, 36, 14);
+    nctx.fillStyle = c === pred ? "#3ddc84" : "#5a7a66";
+    nctx.fillRect(x + 24, y - 7, 36 * act, 14);
+  }
+  nctx.fillStyle = "#888"; nctx.font = "12px sans-serif"; nctx.textAlign = "left";
+  nctx.fillText("retina (25 inputs)", 14, 16);
+  nctx.fillText("output neurons", OUT_X - 32, 16);
+}
+
+// --- Receptive field maps ---
+const fieldsDiv = document.getElementById("fields");
+const fieldCtxs = CLASSES.map(name => {
+  const box = document.createElement("div");
+  box.className = "field";
+  box.textContent = name;
+  const cv = document.createElement("canvas");
+  cv.width = cv.height = SIDE * 18;
+  box.appendChild(cv);
+  fieldsDiv.appendChild(box);
+  return cv.getContext("2d");
+});
+function drawFields() {
+  for (let c = 0; c < NC; c++) {
+    const t = fieldCtxs[c];
+    const mx = Math.max(0.1, ...W[c].slice(0, NPIX).map(Math.abs));
+    for (let i = 0; i < NPIX; i++) {
+      const v = W[c][i] / mx;
+      t.fillStyle = v >= 0
+        ? `rgb(${20}, ${30 + 170 * v}, ${26 + 70 * v})`
+        : `rgb(${30 - 170 * v}, 22, 22)`;
+      t.fillRect((i % SIDE) * 18, Math.floor(i / SIDE) * 18, 17, 17);
+    }
+  }
+}
+
+// --- Stats / refresh ---
+function refresh() {
+  drawRetina(); drawNet(); drawFields();
+  const sc = scores(pixels);
+  const pred = argmax(sc);
+  document.getElementById("stats").textContent =
+    `prediction: ${CLASSES[pred]}\n` +
+    `examples seen: ${seen}   corrections: ${errors}\n` +
+    (seen ? `accuracy on noisy shapes: ${(accuracy(getNoise(), 150) * 100).toFixed(0)}%` : "") +
+    (lastMsg ? `\n${lastMsg}` : "");
+}
+
+// --- Controls ---
+const $ = id => document.getElementById(id);
+const getNoise = () => $("noise").value / 100;
+const getLr = () => $("lr").value / 100;
+$("noise").oninput = () => { $("noiseVal").textContent = $("noise").value + "%"; };
+$("lr").oninput = () => { $("lrVal").textContent = getLr().toFixed(2); };
+$("clear").onclick = () => { pixels.fill(0); lastMsg = ""; refresh(); };
+$("resetW").onclick = () => { resetWeights(); seen = 0; errors = 0; lastMsg = "weights reset"; refresh(); };
+
+CLASSES.forEach((name, c) => {
+  const lb = document.createElement("button");
+  lb.textContent = name;
+  lb.onclick = () => { pixels = noisy(PROTOS[c], getNoise()); lastMsg = ""; refresh(); };
+  $("protoBtns").appendChild(lb);
+  const tb = document.createElement("button");
+  tb.textContent = "this is " + name;
+  tb.onclick = () => {
+    const ok = teach(pixels, c, getLr());
+    seen++; if (!ok) errors++;
+    lastMsg = ok ? "already correct — no change" : "wrong → connections updated";
+    refresh();
+  };
+  $("teachBtns").appendChild(tb);
+});
+
+// --- Auto-training ---
+let autoTimer = null;
+$("auto").onclick = () => {
+  if (autoTimer) {
+    clearInterval(autoTimer); autoTimer = null;
+    $("auto").textContent = "Auto-train";
+    return;
+  }
+  $("auto").textContent = "Stop";
+  autoTimer = setInterval(() => {
+    const c = Math.floor(Math.random() * NC);
+    pixels = noisy(PROTOS[c], getNoise());
+    const ok = teach(pixels, c, getLr());
+    seen++; if (!ok) errors++;
+    lastMsg = `training: shown ${CLASSES[c]} → ` + (ok ? "correct" : "corrected");
+    refresh();
+  }, 90);
+};
+
+refresh();
+</script>
+</body>
+</html>

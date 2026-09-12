@@ -1,0 +1,193 @@
+:root {
+  --shell-bg: #08080d;
+  --shell-panel: rgba(16, 16, 25, .9);
+  --shell-ink: #ecebe4;
+  --shell-dim: #aaa9a3;
+  --shell-line: rgba(236, 235, 228, .16);
+  --shell-violet: #8b7bff;
+  --shell-cyan: #5fe3d0;
+  --shell-yellow: #fcee0a;
+  --shell-h: 54px;
+}
+
+html {
+  scroll-padding-top: calc(var(--shell-h) + 1rem);
+}
+
+body.experiment-page {
+  box-sizing: border-box;
+  min-height: 100%;
+  padding-top: var(--shell-h);
+  overflow-x: hidden;
+  background:
+    radial-gradient(circle at 82% 8%, rgba(139, 123, 255, .09), transparent 30rem),
+    radial-gradient(circle at 8% 86%, rgba(95, 227, 208, .06), transparent 28rem),
+    var(--shell-bg);
+}
+
+body.experiment-page::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: .035;
+  background: repeating-linear-gradient(0deg, #fff 0 1px, transparent 1px 3px);
+}
+
+.experiment-shell {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 1000;
+  height: var(--shell-h);
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0 clamp(.85rem, 3vw, 2rem);
+  border-bottom: 1px solid var(--shell-line);
+  background: rgba(5, 5, 10, .9);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, .24);
+  backdrop-filter: blur(14px);
+}
+
+.experiment-shell::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 2px;
+  background: linear-gradient(90deg, var(--shell-violet), var(--shell-cyan), var(--shell-yellow));
+}
+
+.shell-brand,
+.shell-nav a {
+  color: var(--shell-ink);
+  text-decoration: none;
+}
+
+.shell-brand {
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 12px;
+  letter-spacing: .2em;
+  white-space: nowrap;
+}
+
+.shell-brand strong {
+  color: var(--shell-cyan);
+  font-weight: 600;
+}
+
+.shell-context {
+  overflow: hidden;
+  color: var(--shell-dim);
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 12px;
+  letter-spacing: .12em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.shell-context::before {
+  content: "//";
+  margin-right: .65rem;
+  color: var(--shell-yellow);
+}
+
+.shell-nav {
+  display: flex;
+  align-items: center;
+  gap: .7rem;
+  margin-left: auto;
+}
+
+.shell-nav a {
+  border: 1px solid var(--shell-line);
+  border-radius: 999px;
+  padding: .42rem .75rem;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 12px;
+  letter-spacing: .08em;
+  transition: border-color .2s, color .2s, background .2s;
+}
+
+.shell-nav a:hover {
+  border-color: var(--shell-cyan);
+  background: rgba(95, 227, 208, .08);
+  color: #fff;
+}
+
+.experiment-skip {
+  position: fixed;
+  top: .5rem;
+  left: .75rem;
+  z-index: 1100;
+  padding: .6rem .8rem;
+  color: #05050a;
+  background: var(--shell-yellow);
+  font: 600 13px/1 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  text-decoration: none;
+  transform: translateY(-160%);
+}
+
+.experiment-skip:focus {
+  transform: translateY(0);
+}
+
+body.experiment-page .sub,
+body.experiment-page .note,
+body.experiment-page .legend,
+body.experiment-page label.opt {
+  color: var(--shell-dim);
+}
+
+body.experiment-page details {
+  border-color: var(--shell-line);
+  background: var(--shell-panel);
+}
+
+body.experiment-page summary {
+  color: var(--shell-cyan);
+}
+
+body.experiment-page button,
+body.experiment-page input,
+body.experiment-page select,
+body.experiment-page textarea,
+body.experiment-page summary {
+  min-height: 36px;
+}
+
+body.experiment-page button:focus-visible,
+body.experiment-page input:focus-visible,
+body.experiment-page select:focus-visible,
+body.experiment-page textarea:focus-visible,
+body.experiment-page summary:focus-visible,
+.experiment-shell a:focus-visible {
+  outline: 2px solid var(--shell-yellow);
+  outline-offset: 3px;
+}
+
+body.experiment-page canvas {
+  max-width: 100%;
+}
+
+body.game-life-page #wrap {
+  height: auto;
+  min-height: 0;
+}
+
+@media (max-width: 700px) {
+  :root { --shell-h: 50px; }
+  .shell-context { display: none; }
+  .shell-nav a:last-child { display: none; }
+  .experiment-shell { gap: .55rem; }
+  .shell-brand { font-size: 11px; }
+  .shell-nav a { font-size: 11px; padding: .38rem .62rem; }
+  body.experiment-page .cols > div { min-width: 0 !important; width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .experiment-shell *,
+  .experiment-skip { transition: none !important; }
+}
