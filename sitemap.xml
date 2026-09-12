@@ -12,6 +12,8 @@
   <url><loc>https://syncorelab.de/AI%20Experiments/walkers.html</loc><priority>0.6</priority></url>
   <url><loc>https://syncorelab.de/AI%20Experiments/game_of_life.html</loc><priority>0.6</priority></url>
   <url><loc>https://syncorelab.de/AI%20Experiments/digit_attribution.html</loc><priority>0.6</priority></url>
+  <url><loc>https://syncorelab.de/teaching/</loc><priority>0.5</priority></url>
+  <url><loc>https://syncorelab.de/teaching/nachtklappe.html</loc><priority>0.5</priority></url>
   <url><loc>https://syncorelab.de/impressum.html</loc><priority>0.2</priority></url>
   <url><loc>https://syncorelab.de/datenschutzerklarung.html</loc><priority>0.2</priority></url>
 </urlset>

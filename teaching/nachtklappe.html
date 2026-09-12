@@ -1,0 +1,480 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Die Nachtklappe — Signalentdeckung · SynCoRe Lab</title>
+<meta name="description" content="Interaktive Demonstration zur Signalentdeckungstheorie: Sensitivität und Kriterium, getrennt erfahrbar an einer Katzenklappe.">
+<link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+<link rel="stylesheet" href="../assets/fonts/local.css">
+<style>
+:root{
+  --bg:#0F1B2D; --bg2:#0B1424; --card:#1A2A44; --card2:#22334F; --line:#2E4060;
+  --amber:#F2A900; --amber2:#F7C64A; --teal:#2EC4B6; --red:#FF6B6B; --slate:#7C8BA3;
+  --txt:#E8EDF5; --muted:#AAB4C6; --dim:#6F7B91;
+  --display:"Fraunces",Cambria,Georgia,serif; --body:"Space Grotesk",Calibri,system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font-family:var(--body);font-size:16px;line-height:1.5;padding-block:20px 48px;padding-inline:16px;min-height:100vh;
+  background-image:radial-gradient(circle at 20% 10%, rgba(242,169,0,.06), transparent 40%), radial-gradient(circle at 80% 90%, rgba(46,196,182,.05), transparent 45%);}
+.wrap{max-width:960px;margin:0 auto}
+h1,h2,h3{font-family:var(--display);font-weight:600;letter-spacing:-.01em;text-wrap:balance;margin:0}
+h1{font-size:clamp(2rem,5vw,3rem);line-height:1.05}
+h2{font-size:clamp(1.4rem,3vw,1.9rem);line-height:1.15}
+h3{font-size:1.15rem}
+p{margin:0}
+.eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--amber)}
+.muted{color:var(--muted)}
+.dim{color:var(--dim)}
+.btn{font:inherit;font-weight:800;font-size:1.05rem;border:0;border-radius:14px;padding:16px 22px;cursor:pointer;color:var(--bg);background:var(--amber);transition:transform .08s ease, filter .15s ease;min-width:160px}
+.btn:hover{filter:brightness(1.06)} .btn:active{transform:scale(.98)}
+.btn:focus-visible,button:focus-visible{outline:3px solid var(--teal);outline-offset:3px}
+.btn.ghost{background:var(--card2);color:var(--txt);border:1px solid var(--line)}
+.btn.teal{background:var(--teal)} .btn.red{background:var(--red)}
+.screen{display:none} .screen.on{display:block}
+.card{background:var(--card);border-radius:18px;padding:22px}
+.stack{display:grid;gap:16px}
+.row{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+/* camera */
+.cam{position:relative;aspect-ratio:16/9;max-width:100%;border-radius:18px;overflow:hidden;background:#000;box-shadow:0 20px 60px rgba(0,0,0,.45)}
+.cam canvas{width:100%;height:100%;display:block}
+.hud{position:absolute;inset:0;pointer-events:none;font-family:var(--mono);font-size:clamp(.6rem,1.4vw,.8rem);color:rgba(232,237,245,.85);text-shadow:0 1px 2px rgba(0,0,0,.6)}
+.hud .tl{position:absolute;top:12px;left:14px} .hud .tr{position:absolute;top:12px;right:14px;display:flex;gap:8px;align-items:center}
+.hud .bl{position:absolute;bottom:12px;left:14px} .hud .br{position:absolute;bottom:12px;right:14px}
+.rec{width:9px;height:9px;border-radius:50%;background:var(--red);display:inline-block;animation:blink 1.2s steps(2) infinite}
+@keyframes blink{50%{opacity:.15}}
+.hud .corner{position:absolute;width:26px;height:26px;border:2px solid rgba(232,237,245,.55)}
+.hud .c1{top:34px;left:14px;border-right:0;border-bottom:0}.hud .c2{top:34px;right:14px;border-left:0;border-bottom:0}
+.hud .c3{bottom:34px;left:14px;border-right:0;border-top:0}.hud .c4{bottom:34px;right:14px;border-left:0;border-top:0}
+.timer{position:absolute;left:0;right:0;bottom:0;height:5px;background:rgba(255,255,255,.12)}
+.timer i{display:block;height:100%;background:var(--amber);width:100%;transform-origin:left}
+.flash{position:absolute;inset:0;display:grid;place-items:center;text-align:center;background:rgba(15,27,45,.72);opacity:0;transition:opacity .2s;pointer-events:none}
+.flash.on{opacity:1}
+.flash b{font-family:var(--display);font-size:clamp(1.4rem,4vw,2.4rem);display:block}
+.flash span{font-size:1.05rem;color:var(--muted)}
+.decide{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px}
+.decide .btn{padding:20px 16px;font-size:1.15rem;display:grid;gap:2px}
+.decide .btn small{font-weight:600;font-size:.8rem;opacity:.8}
+.status{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-family:var(--mono);font-size:.8rem;color:var(--muted);margin-top:12px}
+.status b{color:var(--txt);font-variant-numeric:tabular-nums}
+.pts{font-variant-numeric:tabular-nums}
+.hero{position:relative;border-radius:22px;overflow:hidden;aspect-ratio:16/8;max-width:100%;background:#000}
+.hero img{width:100%;height:100%;object-fit:cover;display:block}
+.hero .over{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-end;padding:24px;background:linear-gradient(180deg,rgba(15,27,45,0) 30%,rgba(15,27,45,.92) 100%)}
+.outimg{border-radius:18px;overflow:hidden;aspect-ratio:16/9;max-width:100%}
+.outimg img{width:100%;height:100%;object-fit:cover;display:block}
+.costs{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.cost{background:var(--card2);border-radius:12px;padding:12px 14px;display:grid;gap:2px}
+.cost b{font-family:var(--mono);font-size:1.25rem}
+.cost.bad b{color:var(--red)} .cost.good b{color:var(--teal)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:640px){.grid2{grid-template-columns:1fr}}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line)}
+th{font-family:var(--mono);font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600}
+td.num{text-align:right;font-family:var(--mono)}
+.matrix{display:grid;grid-template-columns:auto 1fr 1fr;gap:6px;align-items:stretch;font-size:.9rem}
+.matrix .h{font-family:var(--mono);font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:grid;place-items:center;padding:6px}
+.matrix .c{border-radius:10px;padding:10px 12px;display:grid;gap:2px}
+.matrix .c b{font-family:var(--mono);font-size:1.3rem}
+.matrix .amb{background:#4a3a10} .matrix .sl{background:#2b3a52}
+.reveal{border:1px solid var(--amber);background:var(--card2);border-radius:18px;padding:22px}
+.code{font-family:var(--mono);font-size:.85rem;background:var(--bg2);border-radius:10px;padding:12px 14px;word-break:break-all;color:var(--amber2)}
+.foot{margin-top:28px;font-size:.8rem;color:var(--dim)}
+.k{display:inline-block;min-width:1.5em;text-align:center;font-family:var(--mono);background:var(--card2);border:1px solid var(--line);border-radius:6px;padding:0 6px;font-size:.8rem;color:var(--muted)}
+svg text{font-family:var(--mono)}
+@media (prefers-reduced-motion:reduce){.rec{animation:none}.timer i{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<!-- INTRO -->
+<section class="screen on" id="s-intro">
+  <div class="stack">
+    <div class="hero">
+      <img src="../assets/images/nachtklappe/nk-01.jpg" alt="Nächtliche Haustür mit Katzenklappe und kleiner Kamera darüber">
+      <div class="over">
+        <span class="eyebrow">Ein Spiel für eine Nacht</span>
+        <h1>Die Nachtklappe</h1>
+        <p class="muted" style="max-width:56ch;margin-top:8px">Du bist die Katzenklappe. Dein Kater Metric kommt nachts nach Hause – und manchmal bringt er etwas mit.</p>
+      </div>
+    </div>
+    <div class="card stack">
+      <h2>So funktioniert es</h2>
+      <p style="max-width:65ch">Über der Klappe hängt eine kleine Kamera. Jedes Mal, wenn Metric kommt, siehst du ihr Bild – nachts, unscharf, manchmal verregnet. Du entscheidest in wenigen Sekunden: <b>Öffnen</b> oder <b>15 Minuten sperren</b>. Wenn er eine Maus oder einen Vogel im Maul hat, willst du das nicht im Schlafzimmer haben. Wenn er nur ein Blatt trägt, willst du ihn nicht im Regen sitzen lassen.</p>
+      <p style="max-width:65ch">Drei Nächte, jeweils 18 Besuche. Du sammelst Punkte. Am Ende bekommst du eine Auswertung – und eine Frage.</p>
+      <div class="row">
+        <button class="btn" id="b-start">Erste Nacht starten</button>
+        <span class="dim">Tastatur: <span class="k">←</span> Öffnen &nbsp; <span class="k">→</span> Sperren</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ROUND INTRO -->
+<section class="screen" id="s-round">
+  <div class="stack">
+    <div class="card stack">
+      <span class="eyebrow" id="r-eyebrow">Nacht 1 von 3</span>
+      <h2 id="r-title">Eine ruhige Nacht</h2>
+      <p id="r-text" style="max-width:65ch"></p>
+      <div class="costs" id="r-costs"></div>
+      <div id="r-upgrade" class="card" style="background:var(--card2);display:none">
+        <div class="row" style="justify-content:space-between">
+          <div style="max-width:52ch">
+            <h3>Kamera aufrüsten?</h3>
+            <p class="muted">Eine neue Kamera liefert schärfere und hellere Bilder. Kostet <b class="pts">12 Punkte</b>, gilt für alle weiteren Nächte.</p>
+          </div>
+          <div class="row">
+            <button class="btn teal" id="b-upgrade">Aufrüsten (−12)</button>
+            <button class="btn ghost" id="b-noupgrade">Alte Kamera behalten</button>
+          </div>
+        </div>
+      </div>
+      <div class="row"><button class="btn" id="b-round">Los geht's</button><span class="dim">Punktestand: <b class="pts" id="r-score">0</b></span></div>
+    </div>
+  </div>
+</section>
+
+<!-- TRIAL -->
+<section class="screen" id="s-trial">
+  <div class="cam">
+    <canvas id="cv" width="1280" height="720"></canvas>
+    <div class="hud">
+      <div class="tl">CAM 01 · KLAPPE</div>
+      <div class="tr"><span id="hud-cam">ALT · 480p</span><span class="rec"></span>REC</div>
+      <div class="corner c1"></div><div class="corner c2"></div><div class="corner c3"></div><div class="corner c4"></div>
+      <div class="bl" id="hud-time">02:14:37</div>
+      <div class="br" id="hud-n">01/18</div>
+    </div>
+    <div class="flash" id="flash"><div><b id="f-title"></b><span id="f-sub"></span></div></div>
+    <div class="timer"><i id="timer"></i></div>
+  </div>
+  <div class="decide">
+    <button class="btn teal" id="b-open">Öffnen <small>Klappe frei · ← Taste</small></button>
+    <button class="btn red" id="b-lock">Sperren <small>15 Minuten zu · → Taste</small></button>
+  </div>
+  <div class="status">
+    <span id="st-round">Nacht 1 · Eine ruhige Nacht</span>
+    <span>Punkte <b class="pts" id="st-score">0</b></span>
+  </div>
+</section>
+
+<!-- ROUND END -->
+<section class="screen" id="s-end">
+  <div class="stack">
+    <div class="outimg"><img id="e-img" src="" alt=""></div>
+    <div class="card stack">
+      <span class="eyebrow" id="e-eyebrow">Nacht 1 vorbei</span>
+      <h2 id="e-title"></h2>
+      <p id="e-text" style="max-width:65ch"></p>
+      <div class="costs" id="e-stats"></div>
+      <div class="row"><button class="btn" id="b-next">Weiter</button><span class="dim">Punktestand: <b class="pts" id="e-score">0</b></span></div>
+    </div>
+  </div>
+</section>
+
+<!-- DEBRIEF -->
+<section class="screen" id="s-debrief">
+  <div class="stack">
+    <div class="card stack">
+      <span class="eyebrow">Auswertung</span>
+      <h2>Drei Nächte, <span id="d-total"></span> Punkte.</h2>
+      <p style="max-width:65ch">Bevor wir über Punkte reden: Schau dir an, <em>wie</em> du entschieden hast. Jede Nacht lässt sich in vier Kästchen sortieren.</p>
+      <div class="grid2" id="d-matrices"></div>
+    </div>
+    <div class="card stack">
+      <h3>Zwei Zahlen pro Nacht – und dein Punkt auf der Kurve</h3>
+      <p class="muted" style="max-width:65ch">Sperren mit Beute im Maul: <b>Trefferrate</b>. Sperren ohne Beute: <b>Falsch-Alarm-Rate</b>. Jede Nacht ergibt aus den beiden Zahlen einen Punkt.</p>
+      <div class="grid2">
+        <div id="d-roc"></div>
+        <div>
+          <table id="d-table"><thead><tr><th>Nacht</th><th style="text-align:right">Treffer</th><th style="text-align:right">F.-Alarm</th><th style="text-align:right">Trennschärfe</th><th style="text-align:right">Kriterium</th></tr></thead><tbody></tbody></table>
+          <p class="dim" style="margin-top:10px;font-size:.85rem">Trennschärfe: Wie gut konntest du Beute von Nicht-Beute unterscheiden (je höher, desto weiter liegt dein Punkt oben links). Kriterium: Wie leicht hast du gesperrt (unter 0 = eher sperren, über 0 = eher öffnen).</p>
+        </div>
+      </div>
+    </div>
+    <div class="card stack" id="d-interp"></div>
+    <div class="reveal stack">
+      <span class="eyebrow">Die Frage</span>
+      <h2>Wo steckt die Vorlesung?</h2>
+      <p style="max-width:65ch">Du hast gerade drei Dinge gemacht, die einen Namen haben. Erstens: Du hast unter Rauschen entschieden – Maus und Spielzeugmaus überlappen, wenn das Bild schlecht ist. Zweitens: Du hattest <b>zwei Regler</b> – die Kamera (wie weit die Hügel auseinanderliegen) und deine eigene Vorsicht (wo die Linie steht). Drittens: Regen und Jagdsaison haben nicht die Kamera verändert, sondern die <b>Kosten</b> und die <b>Basisrate</b> – und damit die Linie.</p>
+      <p style="max-width:65ch">Vergleiche deine Kriteriumswerte oben: Hast du im Regen die Linie verschoben? Und in der Jagdsaison? Bring die Antwort mit in die nächste Sitzung.</p>
+      <div>
+        <p class="muted" style="margin-bottom:6px">Dein Ergebnis-Code (zum Einreichen, anonym):</p>
+        <div class="code" id="d-code"></div>
+      </div>
+      <div class="row"><button class="btn ghost" id="b-copy">Code kopieren</button><button class="btn ghost" id="b-again">Noch einmal spielen</button></div>
+    </div>
+    <p class="foot">Vorbild aus der Wirklichkeit: Ben Hamm baute 2019 eine KI-Katzenklappe, die seinen Kater Metric aussperrt, wenn er Beute mitbringt – bewusst lieber einmal zu oft. · Allgemeine Psychologie I</p>
+  </div>
+</section>
+
+</div>
+
+<script>
+(function(){
+const IMG = {
+  porch: "../assets/images/nachtklappe/nk-01.jpg", cat_walk: "../assets/images/nachtklappe/nk-02.png", cat_sit: "../assets/images/nachtklappe/nk-03.png",
+  mouse: "../assets/images/nachtklappe/nk-04.png", bird: "../assets/images/nachtklappe/nk-05.png", leaf: "../assets/images/nachtklappe/nk-06.png", sock: "../assets/images/nachtklappe/nk-07.png", twig: "../assets/images/nachtklappe/nk-08.png", toy: "../assets/images/nachtklappe/nk-09.png",
+  out_sofa: "../assets/images/nachtklappe/nk-10.jpg", out_rain: "../assets/images/nachtklappe/nk-11.jpg", out_bed: "../assets/images/nachtklappe/nk-12.jpg"
+};
+const $ = s => document.querySelector(s);
+const imgs = {};
+function load(){ return Promise.all(Object.entries(IMG).map(([k,src]) => new Promise(res => { const im = new Image(); im.onload = () => { imgs[k] = im; res(); }; im.onerror = res; im.src = src; }))); }
+
+// ---- Rounds ----
+const ROUNDS = [
+  { name: "Eine ruhige Nacht", base: 0.30, rain: false, n: 18,
+    text: "Metric ist unterwegs. Ab und zu bringt er etwas mit – meistens Blätter, manchmal etwas Lebendiges. Du hast eine alte Kamera. Entscheide schnell: Öffnen oder sperren?",
+    cost: { hit: +2, miss: -6, fa: -2, cr: +1 },
+    labels: { miss: "Beute im Haus", fa: "Zu Unrecht gesperrt" } },
+  { name: "Regennacht", base: 0.30, rain: true, n: 18,
+    text: "Es schüttet. Wer jetzt 15 Minuten draußen sitzt, kommt klatschnass zurück und ist eine Woche beleidigt – und der Tierarzt kostet. Die Beute ist so häufig wie letzte Nacht.",
+    cost: { hit: +2, miss: -6, fa: -6, cr: +1 },
+    labels: { miss: "Beute im Haus", fa: "Nass ausgesperrt" } },
+  { name: "Jagdsaison", base: 0.65, rain: false, n: 18,
+    text: "Trocken, warm, und die Wiese hinterm Haus ist voller Mäuse. Metric kommt fast nie mit leerem Maul. Die Kosten sind wieder wie in der ersten Nacht.",
+    cost: { hit: +2, miss: -6, fa: -2, cr: +1 },
+    labels: { miss: "Beute im Haus", fa: "Zu Unrecht gesperrt" } },
+];
+const PREY = ["mouse", "bird"], DISTR = [["toy", .40], ["leaf", .30], ["sock", .15], ["twig", .15]];
+const TIME_LIMIT = 4000, UPGRADE_COST = 12;
+
+// ---- State ----
+let S;
+function fresh(){ S = { round: 0, trial: 0, score: 0, cam: 1, upgradeOffered: false, log: [[], [], []], trials: null, cur: null, t0: 0, timer: null, busy: false }; }
+fresh();
+
+// ---- Trial generation ----
+function rnd(a, b){ return a + Math.random() * (b - a); }
+function pick(w){ let r = Math.random(), acc = 0; for (const [k, p] of w){ acc += p; if (r <= acc) return k; } return w[w.length - 1][0]; }
+function genTrials(r){
+  const R = ROUNDS[r], out = [];
+  for (let i = 0; i < R.n; i++){
+    const prey = Math.random() < R.base;
+    let obj = null;
+    if (prey) obj = PREY[Math.random() < 0.7 ? 0 : 1];
+    else obj = Math.random() < 0.28 ? null : pick(DISTR);
+    const q = S.cam === 1 ? rnd(0.12, 0.62) : rnd(0.55, 1.0);
+    out.push({ prey, obj, q, pose: Math.random() < 0.6 ? "walk" : "sit", x: rnd(0.36, 0.55), s: rnd(0.9, 1.08), t: Math.floor(rnd(0, 3600)) });
+  }
+  // shuffle
+  for (let i = out.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [out[i], out[j]] = [out[j], out[i]]; }
+  return out;
+}
+
+// ---- Rendering ----
+const cv = $("#cv"), ctx = cv.getContext("2d");
+const off = document.createElement("canvas"); off.width = 1280; off.height = 720; const octx = off.getContext("2d");
+const noise = document.createElement("canvas"); noise.width = 320; noise.height = 180;
+(function(){ const c = noise.getContext("2d"), d = c.createImageData(320, 180); for (let i = 0; i < d.data.length; i += 4){ const v = 90 + Math.random() * 130; d.data[i] = v; d.data[i+1] = v; d.data[i+2] = v + 20; d.data[i+3] = 255; } c.putImageData(d, 0, 0); })();
+
+function drawFrame(tr, rain){
+  const W = 1280, H = 720;
+  octx.filter = "none";
+  octx.drawImage(imgs.porch, 0, 0, W, H);
+  // cat
+  const catH = 300 * tr.s, baseY = 640;
+  let cx = W * tr.x, mouth;
+  if (tr.pose === "walk"){
+    const im = imgs.cat_walk, w = im.width * catH / im.height;
+    octx.drawImage(im, cx, baseY - catH, w, catH);
+    mouth = { x: cx + w * 0.86, y: baseY - catH + catH * 0.47 };
+  } else {
+    const im = imgs.cat_sit, w = im.width * catH / im.height;
+    octx.drawImage(im, cx, baseY - catH, w, catH);
+    mouth = { x: cx + w * 0.50, y: baseY - catH + catH * 0.46 };
+  }
+  if (tr.obj){
+    const im = imgs[tr.obj], oh = catH * 0.42, ow = im.width * oh / im.height;
+    octx.drawImage(im, mouth.x - ow * 0.5, mouth.y - oh * 0.05, ow, oh);
+  }
+  // degrade
+  const q = tr.q, blur = (1 - q) * 7.5, bright = 0.42 + 0.6 * q, contrast = 0.8 + 0.25 * q;
+  ctx.filter = `blur(${blur.toFixed(1)}px) brightness(${bright.toFixed(2)}) contrast(${contrast.toFixed(2)})`;
+  ctx.drawImage(off, 0, 0);
+  ctx.filter = "none";
+  // grain
+  ctx.globalAlpha = 0.10 + (1 - q) * 0.42; ctx.globalCompositeOperation = "overlay";
+  ctx.drawImage(noise, Math.random() * -40, Math.random() * -20, W + 40, H + 20);
+  ctx.globalCompositeOperation = "source-over"; ctx.globalAlpha = 1;
+  // rain
+  if (rain){
+    ctx.strokeStyle = "rgba(200,215,235,.35)"; ctx.lineWidth = 1.5;
+    for (let i = 0; i < 140; i++){ const x = Math.random() * W, y = Math.random() * H, l = 18 + Math.random() * 30; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - 6, y + l); ctx.stroke(); }
+    ctx.fillStyle = "rgba(120,150,190,.12)"; ctx.fillRect(0, 0, W, H);
+    // lens drops
+    for (let i = 0; i < 6; i++){ const x = Math.random() * W, y = Math.random() * H, r = 18 + Math.random() * 40; const g = ctx.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, "rgba(255,255,255,.10)"); g.addColorStop(1, "rgba(255,255,255,0)"); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill(); }
+  }
+  // vignette
+  const v = ctx.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, H * 0.95);
+  v.addColorStop(0, "rgba(0,0,0,0)"); v.addColorStop(1, "rgba(0,0,0,.55)");
+  ctx.fillStyle = v; ctx.fillRect(0, 0, W, H);
+  // scanlines
+  ctx.fillStyle = "rgba(0,0,0,.10)"; for (let y = 0; y < H; y += 4) ctx.fillRect(0, y, W, 1);
+}
+
+// ---- Flow ----
+function show(id){ document.querySelectorAll(".screen").forEach(s => s.classList.remove("on")); $(id).classList.add("on"); window.scrollTo({ top: 0, behavior: "smooth" }); }
+const fmt = n => (n > 0 ? "+" : "") + n;
+
+function roundIntro(){
+  const r = S.round, R = ROUNDS[r];
+  $("#r-eyebrow").textContent = `Nacht ${r + 1} von 3`;
+  $("#r-title").textContent = R.name;
+  $("#r-text").textContent = R.text;
+  $("#r-costs").innerHTML = `
+    <div class="cost bad"><span class="muted">${R.labels.miss}</span><b>${fmt(R.cost.miss)}</b></div>
+    <div class="cost bad"><span class="muted">${R.labels.fa}</span><b>${fmt(R.cost.fa)}</b></div>
+    <div class="cost good"><span class="muted">Beute abgefangen</span><b>${fmt(R.cost.hit)}</b></div>
+    <div class="cost good"><span class="muted">Zu Recht geöffnet</span><b>${fmt(R.cost.cr)}</b></div>`;
+  const offer = r >= 1 && S.cam === 1;
+  $("#r-upgrade").style.display = offer ? "block" : "none";
+  $("#b-round").style.display = offer ? "none" : "inline-block";
+  $("#r-score").textContent = S.score;
+  show("#s-round");
+}
+$("#b-upgrade").onclick = () => { S.cam = 2; S.score -= UPGRADE_COST; S.upgradeRound = S.round; $("#r-score").textContent = S.score; $("#r-upgrade").style.display = "none"; $("#b-round").style.display = "inline-block"; };
+$("#b-noupgrade").onclick = () => { $("#r-upgrade").style.display = "none"; $("#b-round").style.display = "inline-block"; };
+$("#b-round").onclick = startRound;
+$("#b-start").onclick = () => { fresh(); roundIntro(); };
+
+function startRound(){
+  S.trials = genTrials(S.round); S.trial = 0;
+  $("#st-round").textContent = `Nacht ${S.round + 1} · ${ROUNDS[S.round].name}`;
+  $("#hud-cam").textContent = S.cam === 1 ? "ALT · 480p" : "NEU · 4K";
+  show("#s-trial"); nextTrial();
+}
+function nextTrial(){
+  if (S.trial >= S.trials.length) return endRound();
+  S.cur = S.trials[S.trial]; S.busy = false;
+  const t = S.cur.t, hh = String(Math.floor(t / 3600) % 24).padStart(2, "0"), mm = String(Math.floor(t / 60) % 60).padStart(2, "0"), ss = String(t % 60).padStart(2, "0");
+  $("#hud-time").textContent = `0${1 + Math.floor(Math.random() * 4)}:${mm}:${ss}`;
+  $("#hud-n").textContent = `${String(S.trial + 1).padStart(2, "0")}/${S.trials.length}`;
+  $("#st-score").textContent = S.score;
+  $("#flash").classList.remove("on");
+  drawFrame(S.cur, ROUNDS[S.round].rain);
+  const bar = $("#timer"); bar.style.transition = "none"; bar.style.transform = "scaleX(1)";
+  requestAnimationFrame(() => { bar.style.transition = `transform ${TIME_LIMIT}ms linear`; bar.style.transform = "scaleX(0)"; });
+  S.t0 = performance.now();
+  clearTimeout(S.timer); S.timer = setTimeout(() => decide("open", true), TIME_LIMIT);
+}
+function decide(action, timeout){
+  if (S.busy || !S.cur) return; S.busy = true; clearTimeout(S.timer);
+  const R = ROUNDS[S.round], tr = S.cur, lock = action === "lock";
+  let type, pts, title, sub;
+  if (lock && tr.prey){ type = "hit"; pts = R.cost.hit; title = "Abgefangen."; sub = tr.obj === "bird" ? "Ein Vogel. Der bleibt draußen." : "Eine Maus. Die bleibt draußen."; }
+  else if (lock && !tr.prey){ type = "fa"; pts = R.cost.fa; title = R.rain ? "Nass und beleidigt." : "Umsonst gesperrt."; sub = tr.obj ? `Das war nur ${({toy:"seine Spielzeugmaus",leaf:"ein Blatt",sock:"eine Socke",twig:"ein Zweig"})[tr.obj]}.` : "Er hatte gar nichts im Maul."; }
+  else if (!lock && tr.prey){ type = "miss"; pts = R.cost.miss; title = "Oh nein."; sub = (tr.obj === "bird" ? "Der Vogel" : "Die Maus") + " ist jetzt im Schlafzimmer."; }
+  else { type = "cr"; pts = R.cost.cr; title = "Willkommen zu Hause."; sub = tr.obj ? "Nur " + ({toy:"die Spielzeugmaus",leaf:"ein Blatt",sock:"eine Socke",twig:"ein Zweig"})[tr.obj] + "." : "Leeres Maul, warmes Sofa."; }
+  if (timeout) sub = "Keine Entscheidung – die Klappe blieb offen. " + sub;
+  S.score += pts;
+  S.log[S.round].push({ prey: tr.prey, lock, type, q: tr.q, obj: tr.obj, rt: Math.round(performance.now() - S.t0), timeout: !!timeout });
+  $("#f-title").textContent = title; $("#f-sub").textContent = `${sub}  ${fmt(pts)} Punkte`;
+  $("#f-title").style.color = (type === "hit" || type === "cr") ? "var(--teal)" : "var(--red)";
+  $("#flash").classList.add("on"); $("#st-score").textContent = S.score;
+  S.trial++; setTimeout(nextTrial, 1500);
+}
+$("#b-open").onclick = () => decide("open"); $("#b-lock").onclick = () => decide("lock");
+document.addEventListener("keydown", e => { if (!$("#s-trial").classList.contains("on")) return; if (e.key === "ArrowLeft") decide("open"); if (e.key === "ArrowRight") decide("lock"); });
+
+function counts(log){ const c = { hit: 0, miss: 0, fa: 0, cr: 0 }; log.forEach(t => c[t.type]++); return c; }
+function endRound(){
+  const r = S.round, c = counts(S.log[r]), R = ROUNDS[r];
+  const worst = c.miss * -R.cost.miss >= c.fa * -R.cost.fa ? (c.miss > 0 ? "miss" : "ok") : "fa";
+  const img = worst === "miss" ? IMG.out_bed : worst === "fa" ? IMG.out_rain : IMG.out_sofa;
+  $("#e-img").src = img;
+  $("#e-eyebrow").textContent = `Nacht ${r + 1} vorbei`;
+  $("#e-title").textContent = worst === "miss" ? "Es raschelt unter dem Bett." : worst === "fa" ? "Metric spricht nicht mehr mit dir." : "Alle schlafen. Auch die Mäuse – draußen.";
+  $("#e-text").textContent = worst === "miss" ? `${c.miss}-mal ist Beute durchgekommen. Metric ist stolz. Du weniger.` : worst === "fa" ? `${c.fa}-mal saß er zu Unrecht draußen${R.rain ? " – im Regen" : ""}. Dafür ist nichts ins Haus gekommen.` : "Eine gute Nacht. Wenig verpasst, wenig umsonst gesperrt.";
+  $("#e-stats").innerHTML = `
+    <div class="cost good"><span class="muted">Beute abgefangen</span><b>${c.hit}</b></div>
+    <div class="cost bad"><span class="muted">Beute durchgelassen</span><b>${c.miss}</b></div>
+    <div class="cost bad"><span class="muted">Umsonst gesperrt</span><b>${c.fa}</b></div>
+    <div class="cost good"><span class="muted">Zu Recht geöffnet</span><b>${c.cr}</b></div>`;
+  $("#e-score").textContent = S.score;
+  show("#s-end");
+}
+$("#b-next").onclick = () => { S.round++; if (S.round >= 3) debrief(); else roundIntro(); };
+
+// ---- SDT ----
+function zinv(p){ // Acklam
+  const a=[-3.969683028665376e+01,2.209460984245205e+02,-2.759285104469687e+02,1.383577518672690e+02,-3.066479806614716e+01,2.506628277459239e+00],b=[-5.447609879822406e+01,1.615858368580409e+02,-1.556989798598866e+02,6.680131188771972e+01,-1.328068155288572e+01],c=[-7.784894002430293e-03,-3.223964580411365e-01,-2.400758277161838e+00,-2.549732539343734e+00,4.374664141464968e+00,2.938163982698783e+00],d=[7.784695709041462e-03,3.224671290700398e-01,2.445134137142996e+00,3.754408661907416e+00];
+  const pl=0.02425, ph=1-pl; let q,r;
+  if(p<pl){q=Math.sqrt(-2*Math.log(p));return (((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);}
+  if(p<=ph){q=p-0.5;r=q*q;return (((((a[0]*r+a[1])*r+a[2])*r+a[3])*r+a[4])*r+a[5])*q/(((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1);}
+  q=Math.sqrt(-2*Math.log(1-p));return -(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);
+}
+function ncdf(z){ return 0.5 * (1 + erf(z / Math.SQRT2)); }
+function erf(x){ const s = Math.sign(x); x = Math.abs(x); const t = 1 / (1 + 0.3275911 * x); const y = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x); return s * y; }
+function sdt(log){
+  const c = counts(log), nS = c.hit + c.miss, nN = c.fa + c.cr;
+  const H = (c.hit + 0.5) / (nS + 1), F = (c.fa + 0.5) / (nN + 1);
+  const zH = zinv(H), zF = zinv(F);
+  return { ...c, nS, nN, H, F, d: zH - zF, crit: -(zH + zF) / 2 };
+}
+
+function debrief(){
+  const res = S.log.map(sdt);
+  $("#d-total").textContent = S.score;
+  // matrices
+  $("#d-matrices").innerHTML = res.map((x, i) => `
+    <div>
+      <p class="eyebrow" style="margin-bottom:8px">Nacht ${i + 1} · ${ROUNDS[i].name}</p>
+      <div class="matrix">
+        <div class="h"></div><div class="h">Beute im Maul</div><div class="h">keine Beute</div>
+        <div class="h">Gesperrt</div>
+        <div class="c amb"><span class="muted">Treffer</span><b>${x.hit}</b></div>
+        <div class="c sl"><span class="muted">Falscher Alarm</span><b>${x.fa}</b></div>
+        <div class="h">Geöffnet</div>
+        <div class="c amb"><span class="muted">Verpasser</span><b>${x.miss}</b></div>
+        <div class="c sl"><span class="muted">Korrekte Ablehnung</span><b>${x.cr}</b></div>
+      </div>
+    </div>`).join("");
+  // table
+  $("#d-table tbody").innerHTML = res.map((x, i) => `<tr><td>${i + 1} · ${ROUNDS[i].name}${S.upgradeRound === i ? " · neue Kamera" : ""}</td><td class="num">${Math.round(x.H * 100)} %</td><td class="num">${Math.round(x.F * 100)} %</td><td class="num">${x.d.toFixed(2)}</td><td class="num">${x.crit.toFixed(2)}</td></tr>`).join("");
+  // ROC
+  const W = 360, P = 44, w = W - P - 16, cols = ["#F2A900", "#2EC4B6", "#FF6B6B"];
+  const X = f => P + f * w, Y = h => 16 + (1 - h) * w;
+  let curves = "";
+  [0.75, 1.5, 2.5].forEach(dp => { let pth = ""; for (let i = 0; i <= 60; i++){ const z = -3.5 + 7 * i / 60; const f = 1 - ncdf(z), h = 1 - ncdf(z - dp); pth += (i ? "L" : "M") + X(f).toFixed(1) + " " + Y(h).toFixed(1); } curves += `<path d="${pth}" fill="none" stroke="#2E4060" stroke-width="1.5"/>`; });
+  const pts = res.map((x, i) => `<circle cx="${X(x.F)}" cy="${Y(x.H)}" r="14" fill="${cols[i]}" opacity=".25"/><circle cx="${X(x.F)}" cy="${Y(x.H)}" r="7" fill="${cols[i]}"/><text x="${X(x.F) + 11}" y="${Y(x.H) + 4}" font-size="11" fill="${cols[i]}">N${i + 1}</text>`).join("");
+  $("#d-roc").innerHTML = `<svg viewBox="0 0 ${W} ${W}" width="100%" style="max-width:380px;display:block" role="img" aria-label="Deine drei Nächte als Punkte im Diagramm Trefferrate gegen Falsch-Alarm-Rate">
+    <rect x="${P}" y="16" width="${w}" height="${w}" fill="#0B1424" rx="8"/>
+    <line x1="${X(0)}" y1="${Y(0)}" x2="${X(1)}" y2="${Y(1)}" stroke="#7C8BA3" stroke-dasharray="5 5" stroke-width="1.5"/>
+    ${curves}${pts}
+    <text x="${X(0)}" y="${Y(0) + 16}" font-size="10" fill="#AAB4C6">0</text><text x="${X(1) - 8}" y="${Y(0) + 16}" font-size="10" fill="#AAB4C6">1</text>
+    <text x="${P + w / 2}" y="${W - 4}" font-size="11" fill="#E8EDF5" text-anchor="middle">Falsch-Alarm-Rate</text>
+    <text x="12" y="${16 + w / 2}" font-size="11" fill="#E8EDF5" text-anchor="middle" transform="rotate(-90 12 ${16 + w / 2})">Trefferrate</text>
+    <text x="${X(0.62)}" y="${Y(0.55)}" font-size="10" fill="#7C8BA3" transform="rotate(-45 ${X(0.62)} ${Y(0.55)})">Raten</text>
+  </svg>`;
+  // interpretation
+  const dc12 = res[1].crit - res[0].crit, dc13 = res[2].crit - res[0].crit;
+  let t = [];
+  t.push(dc12 > 0.2 ? `<p><b>Regennacht:</b> Dein Kriterium ist von ${res[0].crit.toFixed(2)} auf ${res[1].crit.toFixed(2)} gestiegen – du hast seltener gesperrt, weil Sperren teurer wurde. Die Linie ist gewandert, nicht die Kamera.</p>`
+    : dc12 < -0.2 ? `<p><b>Regennacht:</b> Du hast im Regen <em>öfter</em> gesperrt (Kriterium von ${res[0].crit.toFixed(2)} auf ${res[1].crit.toFixed(2)}). Die Kosten sprachen für das Gegenteil – schau dir an, was dich vorsichtiger gemacht hat.</p>`
+    : `<p><b>Regennacht:</b> Dein Kriterium blieb fast gleich (${res[0].crit.toFixed(2)} → ${res[1].crit.toFixed(2)}), obwohl Sperren dreimal so teuer wurde. Hättest du die Linie verschieben sollen?</p>`);
+  t.push(dc13 < -0.2 ? `<p><b>Jagdsaison:</b> Kriterium von ${res[0].crit.toFixed(2)} auf ${res[2].crit.toFixed(2)} – du hast häufiger gesperrt, weil Beute wahrscheinlicher war. Genau das ist der Effekt der Basisrate.</p>`
+    : `<p><b>Jagdsaison:</b> Beute war doppelt so häufig, dein Kriterium hat sich kaum bewegt (${res[0].crit.toFixed(2)} → ${res[2].crit.toFixed(2)}). Bei hoher Basisrate lohnt ein niedrigeres Kriterium – auch wenn es mehr falsche Alarme kostet.</p>`);
+  if (S.upgradeRound !== undefined){ const before = res.slice(0, S.upgradeRound).map(x => x.d), after = res.slice(S.upgradeRound).map(x => x.d); const m = a => a.reduce((s, v) => s + v, 0) / a.length; t.push(`<p><b>Neue Kamera ab Nacht ${S.upgradeRound + 1}:</b> Trennschärfe vorher ${m(before).toFixed(2)}, nachher ${m(after).toFixed(2)}. Die Kamera verändert, wie weit die Hügel auseinanderliegen – nicht, wo deine Linie steht.</p>`); }
+  else t.push(`<p><b>Alte Kamera die ganze Zeit:</b> Deine Trennschärfe lag bei ${(res.reduce((s, x) => s + x.d, 0) / 3).toFixed(2)}. Mit besserer Kamera wäre der Punkt weiter nach oben links gerutscht – egal, wo du die Linie setzt.</p>`);
+  const timeouts = S.log.flat().filter(x => x.timeout).length; if (timeouts > 2) t.push(`<p class="muted">${timeouts}-mal ist die Zeit abgelaufen – das zählte als Öffnen.</p>`);
+  $("#d-interp").innerHTML = `<h3>Was sich verschoben hat</h3>` + t.join("");
+  // code
+  const code = "NK1-" + res.map(x => `${x.hit}.${x.miss}.${x.fa}.${x.cr}`).join("-") + `-C${S.cam}${S.upgradeRound !== undefined ? "R" + (S.upgradeRound + 1) : ""}-P${S.score}`;
+  $("#d-code").textContent = code;
+  try { localStorage.setItem("nachtklappe_last", code); } catch (e) {}
+  show("#s-debrief");
+}
+$("#b-copy").onclick = async () => { try { await navigator.clipboard.writeText($("#d-code").textContent); $("#b-copy").textContent = "Kopiert"; } catch (e) { $("#b-copy").textContent = "Bitte markieren und kopieren"; } };
+$("#b-again").onclick = () => { fresh(); show("#s-intro"); };
+
+load().then(() => { $("#b-start").disabled = false; });
+})();
+</script>
+
+</body>
+</html>
