@@ -278,6 +278,11 @@ section{
   will-change:transform,opacity,filter;
 }
 @media(max-width:760px){section:not(#hero){min-height:88svh}}
+/* phones: each chapter opens on an empty stage for its totem; the text follows below it */
+@media(max-width:760px){
+  section:not(#hero):not(#findings){padding-top:46svh}
+  section:not(#hero):not(#findings)::before{inset:40svh -10% 2% -10%}
+}
 .kicker{
   width:min(100%,72rem);display:grid;grid-template-columns:auto auto minmax(2.5rem,1fr) auto;align-items:center;gap:.85rem;
   margin-bottom:2.2rem;padding:.55rem 1.2rem .55rem .15rem;color:var(--ink);
@@ -320,6 +325,12 @@ section::before,footer::before{
   background:radial-gradient(ellipse 60% 80% at 34% 52%,rgba(3,3,8,.94) 0%,rgba(3,3,8,.72) 42%,transparent 72%);
   filter:blur(6px);
 }
+/* wide screens: keep the pool on the text column so the totems beside it stay bright */
+@media(min-width:1100px){
+  section.pillar::before,#hero::before{
+    background:radial-gradient(ellipse 46% 80% at 22% 52%,rgba(3,3,8,.94) 0%,rgba(3,3,8,.72) 44%,transparent 74%);
+  }
+}
 h1,h2,h3,h4{text-shadow:0 2px 18px rgba(3,3,8,.95),0 0 46px rgba(3,3,8,.8)}
 p,.lead,.kicker,.tag{text-shadow:0 1px 10px rgba(3,3,8,.92)}
 h1,h2{font-family:var(--serif);font-weight:300;line-height:1.05;letter-spacing:-.01em}
@@ -355,6 +366,13 @@ h2:hover{text-shadow:3px 0 rgba(95,227,208,.7),-3px 0 rgba(252,238,10,.55),0 2px
 .spec.rv{transform:translate3d(var(--rv-x),calc(-50% + var(--rv-y)),0) rotateX(var(--rv-rx)) scale(var(--rv-scale))}
 .spec.rv.in{transform:translateY(-50%)}
 body:not(.intro-released) #hero .rv{opacity:0;filter:blur(6px);transform:translate3d(0,34px,0) scale(.985)}
+/* Labels and titles share the section's movement, preserving their layout gap. */
+.kicker.rv,h1.rv,h2.rv,footer .big.rv,
+body:not(.intro-released) #hero .kicker,
+body:not(.intro-released) #hero h1{
+  transform:none;
+  transition-property:opacity,filter;
+}
 section.scene-active .kicker::before,footer.scene-active .kicker::before{animation:signalPing .7s ease-out}
 @keyframes signalPing{0%{opacity:.25;text-shadow:none}40%{opacity:1;text-shadow:0 0 18px var(--cp-yellow)}100%{opacity:1;text-shadow:none}}
 
@@ -486,6 +504,8 @@ section.scene-active .kicker::before,footer.scene-active .kicker::before{animati
 .person h3{font-family:var(--serif);font-weight:400;font-size:clamp(1.7rem,3vw,2.4rem)}
 .person .role{font-family:var(--mono);font-size:.75rem;letter-spacing:.3em;text-transform:uppercase;color:var(--acc);margin:.6rem 0 1.2rem}
 .person p{color:var(--ink-dim);max-width:44rem;font-size:.98rem}
+.person .context{font-size:.88rem;color:var(--ink-faint);margin-bottom:1.2rem}
+.person .context span{display:block}
 .person.join{grid-template-columns:minmax(180px,260px) 1fr}
 .join-slot{aspect-ratio:1;display:grid;place-items:center;border:1px dashed rgba(252,238,10,.5);border-radius:2px;background:rgba(11,11,20,.55)}
 .join-slot span{font-family:var(--mono);font-size:clamp(2.5rem,5vw,4rem);color:rgba(252,238,10,.8)}
@@ -506,6 +526,33 @@ section.scene-active .kicker::before,footer.scene-active .kicker::before{animati
 .link-tile .lt-k{font-family:var(--mono);font-size:.75rem;letter-spacing:.3em;text-transform:uppercase;color:var(--acc-2)}
 .link-tile h4{font-family:var(--serif);font-weight:400;font-size:1.25rem}
 .link-tile p{color:var(--ink-dim);font-size:.88rem}
+
+#lab .link-tile{--signal:#79e8db;--lit:0}
+#lab .link-tile[href="#synthetic"]{--signal:#ba9dff}
+#lab .link-tile[href="#book"]{--signal:#f0c478}
+#lab .link-tile:is(:hover,:focus-visible){--lit:1;border-color:var(--signal);
+  background:#10101e;box-shadow:0 12px 42px -22px var(--signal)}
+#lab:has(.link-tile:is(:hover,:focus-visible)){opacity:1!important}
+#lab .link-tile:is(:hover,:focus-visible) .line-scene{
+  background:radial-gradient(ellipse at center,color-mix(in srgb,var(--signal) 24%,transparent),transparent 71%);
+  filter:drop-shadow(0 0 4px color-mix(in srgb,var(--signal) 47%,transparent))}
+#lab .link-tile:focus-visible{outline:2px solid var(--signal);outline-offset:3px}
+.line-scene{display:block;width:100%;height:5.4rem;color:var(--signal);overflow:hidden;
+  fill:none;stroke:currentColor;stroke-linejoin:round;stroke-linecap:round;
+  opacity:calc(.55 + .45 * var(--lit));transition:opacity .35s;
+  background:radial-gradient(ellipse at center,color-mix(in srgb,var(--signal) 11%,transparent),transparent 72%)}
+.line-scene .dim{opacity:.32}
+.line-scene .pulse{opacity:var(--lit);transition:opacity .24s}
+.line-scene .gate,.line-scene .iris{transform-origin:140px 46px}
+#lab a:is(:hover,:focus-visible) .gate{animation:gate-flight 2.8s cubic-bezier(.4,0,.8,.6) infinite}
+#lab a:is(:hover,:focus-visible) .gate.late{animation-delay:-1.4s}
+@keyframes gate-flight{0%{transform:scale(.24);opacity:.2}65%{opacity:1}100%{transform:scale(1.9);opacity:0}}
+#lab a:is(:hover,:focus-visible) .impulse{stroke-dasharray:27 235;animation:network-fire 1.8s linear infinite;filter:drop-shadow(0 0 2px currentColor)}
+@keyframes network-fire{from{stroke-dashoffset:28}to{stroke-dashoffset:-234}}
+#lab a:is(:hover,:focus-visible) .iris{animation:iris-read 3s ease-in-out infinite}
+@keyframes iris-read{0%,100%{transform:translateX(-12px) scale(.78)}40%,66%{transform:translateX(12px) scale(1.13)}}
+#lab a:is(:hover,:focus-visible) .scan{animation:eye-scan 3s ease-in-out infinite}
+@keyframes eye-scan{0%,100%{transform:translateX(-37px);opacity:.18}50%{transform:translateX(36px);opacity:.85}}
 
 /* ---------- footer ---------- */
 footer{position:relative;z-index:2;border-top:1px solid var(--line);
@@ -651,8 +698,8 @@ section.scene-active .kicker-line,.kicker-line{opacity:.72!important;transform:n
 
 <!-- HERO : approach the brain -->
 <section id="hero" data-chapter="Approach">
-  <div class="kicker rv" data-index="00" data-depth="0.05"><span class="kicker-label">Synthetic Cognition &amp; Reality Laboratory</span><span class="kicker-line"></span><span class="kicker-status" aria-hidden="true">Active</span></div>
-  <h1 class="rv rv-d1" data-depth="0.12">Minds are not<br>studied on <em>flat screens</em></h1>
+  <div class="kicker rv" data-index="00"><span class="kicker-label">Synthetic Cognition &amp; Reality Laboratory</span><span class="kicker-line"></span><span class="kicker-status" aria-hidden="true">Active</span></div>
+  <h1 class="rv rv-d1">Minds are not<br>studied on <em>flat screens</em></h1>
   <div class="sub">
     <p class="rv rv-d2" data-depth="0.07">The SynCoRe Lab studies how cognition and emotion emerge and operate across biological and artificial systems — in immersive environments, under conditions the brain actually evolved for.</p>
     <div class="tag rv rv-d3" data-depth="0.04">NTNU · Trondheim, Norway<br>VR — EEG — Explainable AI</div>
@@ -676,19 +723,40 @@ section.scene-active .kicker-line,.kicker-line{opacity:.72!important;transform:n
 <section id="lab" class="pillar" data-chapter="Grey Matter">
   <div class="num">01 / 07</div>
   <div class="kicker rv" data-index="01"><span class="kicker-label">Psychological Science and Technology</span><span class="kicker-line"></span><span class="kicker-status" aria-hidden="true">Active</span></div>
-  <h2 class="rv rv-d1" data-depth="0.1">Beyond descriptive measures, toward <em>mechanistic models</em></h2>
+  <h2 class="rv rv-d1">Beyond descriptive measures, toward <em>mechanistic models</em></h2>
   <p class="lead rv rv-d2" data-depth="0.05">The <strong>Syn</strong>thetic <strong>Co</strong>gnition and <strong>Re</strong>ality Laboratory integrates virtual reality, EEG, and explainable AI to investigate perception, decision-making, affect, and learning under ecologically valid conditions. The goal: moving beyond descriptive brain measures toward mechanistic models of cognitive processes, grounded in realistic experimental contexts.</p>
   <p class="lead rv rv-d2">Three research lines operate in parallel — and inform one another.</p>
   <div class="links-grid rv rv-d3" style="max-width:64rem">
     <a class="link-tile" href="#vr">
+      <svg class="line-scene" viewBox="0 0 280 92" aria-hidden="true" focusable="false">
+        <g class="dim"><path d="M140 46L0 0m140 46L0 92m140-46L280 0M140 46l140 46M140 46L69 92m71-46l71 46M140 46L69 0m71 46l71-46"/>
+          <rect x="52" y="11" width="176" height="70" rx="10"/><rect x="94" y="28" width="92" height="36" rx="5"/></g>
+        <rect x="115" y="36" width="50" height="20" rx="3"/>
+        <g class="pulse"><rect class="gate" x="59" y="12" width="162" height="68" rx="9" stroke-width="2"/>
+          <rect class="gate late" x="59" y="12" width="162" height="68" rx="9" stroke-width="2"/></g>
+      </svg>
       <span class="lt-k">Line 01</span><h4>Virtual Reality</h4>
       <p>VR + EEG for ecological validity: perception, embodiment, affect and decision-making studied in worlds that push back — with full experimental control.</p>
     </a>
     <a class="link-tile" href="#synthetic">
+      <svg class="line-scene" viewBox="0 0 280 92" aria-hidden="true" focusable="false">
+        <g id="research-circuit"><path d="M10 46H48L75 18H109L138 46H179L205 27H242L270 46M10 46H72L109 70L138 46H179L211 70H242L270 46M10 46H109L138 46H270"/></g>
+        <g fill="currentColor"><circle cx="75" cy="18" r="2.7"/><circle cx="109" cy="70" r="2.7"/><circle cx="138" cy="46" r="4"/><circle cx="205" cy="27" r="2.7"/><circle cx="211" cy="70" r="2.7"/></g>
+        <circle class="dim" cx="138" cy="46" r="10"/>
+        <use class="pulse impulse" href="#research-circuit" stroke="#f5e4ff" stroke-width="3"/>
+      </svg>
       <span class="lt-k">Line 02</span><h4>Synthetic Cognition</h4>
       <p>SHERPA turns opaque EEG classifiers into analytical instruments; deliberately misaligned LLMs expose how mind-like behavior is engineered.</p>
     </a>
     <a class="link-tile" href="#book">
+      <svg class="line-scene" viewBox="0 0 280 92" aria-hidden="true" focusable="false">
+        <defs><clipPath id="research-eye"><path d="M63 46Q136 -18 215 46Q137 110 63 46Z"/></clipPath></defs>
+        <g class="dim"><path d="M12 46H52M227 46h41M35 33h20m170 25h19M131 5h17m-17 82h17"/></g>
+        <path d="M63 46Q136 -18 215 46Q137 110 63 46Z"/>
+        <g clip-path="url(#research-eye)"><g class="iris"><circle cx="140" cy="46" r="22"/><circle cx="140" cy="46" r="17" stroke-dasharray="1 3"/>
+          <circle cx="140" cy="46" r="7" fill="currentColor"/><circle cx="143" cy="42" r="2" fill="#fff"/></g>
+          <path class="pulse scan" d="M140 8V84" stroke-width="2"/></g>
+      </svg>
       <span class="lt-k">Line 03</span><h4>Psychology of AI</h4>
       <p>AI as a psychological object, not a human-like agent — taught in PSY3230, condensed into an upcoming book.</p>
     </a>
@@ -701,7 +769,7 @@ section.scene-active .kicker-line,.kicker-line{opacity:.72!important;transform:n
   <div class="num">02 / 07</div>
   <div class="body" style="max-width:46rem">
     <div class="kicker rv" data-index="02"><span class="kicker-label">Research Line — Virtual Reality</span><span class="kicker-line"></span><span class="kicker-status" aria-hidden="true">Active</span></div>
-    <h2 class="rv rv-d1" data-depth="0.09">The brain evolved for <em>worlds</em>, not screens</h2>
+    <h2 class="rv rv-d1">The brain evolved for <em>worlds</em>, not screens</h2>
     <p class="rv rv-d2">Forged under evolutionary pressure to interact with a rich spatial and temporal milieu, the brain is fundamentally attuned to environments that unfold in continuous time and space. Immersive VR combined with high-density EEG lets us study perception, embodiment, presence, affect, and decision-making in dynamic, spatially extended worlds — with full experimental control.</p>
     <p class="rv rv-d2">Neural dynamics in lifelike settings differ meaningfully from those observed in traditional screen-based tasks. The question is not whether VR looks real, but when it is real enough to change perception, affect, and decision-making.</p>
     <a class="btn rv rv-d3" href="#findings">Selected studies <span class="arr">→</span></a>
@@ -714,18 +782,18 @@ section.scene-active .kicker-line,.kicker-line{opacity:.72!important;transform:n
   <div class="num">03 / 07</div>
   <div class="body" style="max-width:46rem">
     <div class="kicker rv" data-index="03"><span class="kicker-label">Research Line — Synthetic Cognition</span><span class="kicker-line"></span><span class="kicker-status" aria-hidden="true">Active</span></div>
-    <h2 class="rv rv-d1" data-depth="0.09">Making models <em>talk back</em></h2>
+    <h2 class="rv rv-d1">Making models <em>talk back</em></h2>
     <p class="rv rv-d2"><strong>SHERPA</strong> — SHAP-value-based ERP Analysis — turns opaque EEG classifiers into analytical instruments. Attribution methods reveal when and where neural signals contribute to model decisions, enabling fine-grained spatiotemporal analysis of cognitive processes. Prediction is easy; explanation is the point. The name honors the Sherpa guides and their skill in navigating complex terrain — a parallel to the peaks and troughs of ERP signals. SHERPA II is under review.</p>
     <p class="rv rv-d2"><strong>Evil LLMs.</strong> Deployed language models are polished, constrained versions — safe by design, not by nature. They won't help build weapons, but might still help get rid of a 75&nbsp;kg chicken in a way the police cannot trace. For teaching and research, we remove those constraints on purpose: students build deliberately misaligned models to expose the raw behavioral space, and we analyze what emerges in psychological terms — toward the mental architecture of a machine mind. Machines might not have minds, but they are excellent mirrors for ours.</p>
     <a class="btn rv rv-d3" href="https://link.springer.com/article/10.3758/s13428-023-02335-7" target="_blank" rel="noopener">SHERPA — the study <span class="arr">→</span></a>
   </div>
-  <div class="spec spec-r rv rv-d2">Specimen //03 — Silicon Die <i>_</i></div>
+  <div class="spec spec-r rv rv-d2">Specimen //03 — Silicon Die · ERP Ridge <i>_</i></div>
 </section>
 
 <!-- FINDINGS : riding the signal field -->
 <section id="findings" data-chapter="Signals">
   <div class="kicker rv" data-index="03A"><span class="kicker-label">Selected Findings</span><span class="kicker-line"></span><span class="kicker-status" aria-hidden="true">Active</span></div>
-  <h2 class="rv rv-d1" data-depth="0.09">What changes when reality <em>pushes back</em></h2>
+  <h2 class="rv rv-d1">What changes when reality <em>pushes back</em></h2>
   <div class="rail rv rv-d2" tabindex="0" role="region" aria-label="Selected findings, horizontally scrollable list of studies">
     <article class="card tilt">
       <span class="idx">F·01</span>
@@ -784,7 +852,7 @@ section.scene-active .kicker-line,.kicker-line{opacity:.72!important;transform:n
 <section id="experiments" class="pillar" data-chapter="Playground">
   <div class="num">04 / 07</div>
   <div class="kicker rv" data-index="04"><span class="kicker-label">Hands-On — PSY3230 The Psychology of Artificial Intelligence</span><span class="kicker-line"></span><span class="kicker-status" aria-hidden="true">Active</span></div>
-  <h2 class="rv rv-d1" data-depth="0.09">Run synthetic <em>minds</em> yourself</h2>
+  <h2 class="rv rv-d1">Run synthetic <em>minds</em> yourself</h2>
   <p class="lead rv rv-d2">Interactive experiments built for the PSY3230 course: from the first chatbot to networks that learn, remember, and evolve. Each one runs in your browser — and each one asks the same question: what looks like a mind, and what actually is one?</p>
   <div class="links-grid rv rv-d2">
     <a class="link-tile" href="AI%20Experiments/eliza.html">
@@ -831,6 +899,10 @@ section.scene-active .kicker-line,.kicker-line{opacity:.72!important;transform:n
       <span class="lt-k">Explainable AI</span><h4>Digit Attribution</h4>
       <p>Why did it say that? A recognizer that shows its reasons — XAI in miniature.</p>
     </a>
+    <a class="link-tile" href="AI%20Experiments/sherpa.html">
+      <span class="lt-k">Explainable AI — EEG</span><h4>SHERPA</h4>
+      <p>When and where did the signal decide? A classifier on simulated ERPs that maps its own reasons.</p>
+    </a>
   </div>
   <a class="btn rv rv-d3" href="https://www.ntnu.edu/studies/courses/PSY3230#tab=omEmnet" target="_blank" rel="noopener">The course — PSY3230 <span class="arr">→</span></a>
   <a class="btn rv rv-d3" href="teaching/index.html">Teaching demonstrations <span class="arr">→</span></a>
@@ -841,7 +913,7 @@ section.scene-active .kicker-line,.kicker-line{opacity:.72!important;transform:n
 <section id="book" class="pillar" data-chapter="The Bridge">
   <div class="num">05 / 07</div>
   <div class="kicker rv" data-index="05"><span class="kicker-label">Upcoming Book — Psychology of AI</span><span class="kicker-line"></span><span class="kicker-status" aria-hidden="true">Active</span></div>
-  <h2 class="rv rv-d1" data-depth="0.1">“Was our idea of being human ever as clear as <em>we thought?</em>”</h2>
+  <h2 class="rv rv-d1">“Was our idea of being human ever as clear as <em>we thought?</em>”</h2>
   <p class="lead rv rv-d2">The Psychology of AI is a concise, conceptually grounded introduction to artificial intelligence from a psychological perspective. It analyzes how AI systems generate behavior, why they appear cognitively and socially meaningful, and where comparisons with human minds break down — a framework for understanding AI as a psychological object rather than a human-like agent.</p>
   <div class="links-grid rv rv-d2">
     <div class="link-tile">
@@ -880,7 +952,7 @@ section.scene-active .kicker-line,.kicker-line{opacity:.72!important;transform:n
 <section id="people" class="pillar" data-chapter="Humans">
   <div class="num">06 / 07</div>
   <div class="kicker rv" data-index="06"><span class="kicker-label">Humans</span><span class="kicker-line"></span><span class="kicker-status" aria-hidden="true">Active</span></div>
-  <h2 class="rv rv-d1" data-depth="0.09">The minds behind the <em>machines</em></h2>
+  <h2 class="rv rv-d1">The minds behind the <em>machines</em></h2>
 
   <div style="margin-top:3rem">
     <div class="person rv">
@@ -901,6 +973,36 @@ section.scene-active .kicker-line,.kicker-line{opacity:.72!important;transform:n
       </div>
     </div>
 
+    <div class="person rv" id="sigrid-hauge-nustad">
+      <div class="photo tilt"><img src="assets/images/sigrid-hauge-nustad.jpg" alt="Sigrid Hauge Nustad" loading="lazy" style="object-position:50% 30%"></div>
+      <div>
+        <h3>Sigrid Hauge Nustad</h3>
+        <div class="role">M.Sc. Student</div>
+        <p class="context">Master's student supervised by Benjamin Schöne.</p>
+        <p>I am interested in the intersection between psychology and technology, particularly explainable AI, and how psychological knowledge and measures can be applied to better understand AI systems. My earlier research examined the relationship between screen time and attention in young children. I have also worked with interdisciplinarity as a way to face wicked problems, and led workshops on AI in education and its environmental impacts.</p>
+      </div>
+    </div>
+
+    <div class="person rv" id="merle-sagehorn">
+      <div class="photo tilt"><img src="assets/images/merle-sagehorn.jpg" alt="Merle Sagehorn" loading="lazy" style="object-position:50% 24%"></div>
+      <div>
+        <h3>Merle Sagehorn</h3>
+        <div class="role">Postdoctoral Researcher · Collaborator</div>
+        <p class="context">Former PhD student of Benjamin Schöne and current research collaborator.</p>
+        <p>Postdoctoral researcher with a background in psychology and neuroscience. Employs electroencephalography (EEG) and virtual reality (VR) to investigate real-world-relevant neural mechanisms of perception and memory, with a particular focus on the processing of social stimuli such as faces. By combining realistic, interactive social situations in VR with EEG, the aim is to identify event-related and oscillatory neural markers of stimulus processing in naturalistic settings.</p>
+      </div>
+    </div>
+
+    <div class="person rv" id="melissa-jansen">
+      <div class="photo tilt"><img src="assets/images/melissa-jansen.jpg" alt="Melissa Jansen" loading="lazy" style="object-position:50% 30%"></div>
+      <div>
+        <h3>Melissa Jansen</h3>
+        <div class="role">PhD Researcher · Collaborator · Eye-Tracking &amp; VR</div>
+        <p class="context"><span>Osnabrück University, Institute of Psychology</span><span>PhD researcher supervised by Merle Sagehorn, collaborating with Benjamin Schöne.</span></p>
+        <p>My work taps into bridging the gap between rigid laboratory experiments and the complexity of real-life interactions. In order to study face perception, processing, and memory under ecologically valid conditions, I specialise in the integration of VR, EEG, and eye-tracking. To support this methodology, I develop an automated validation tool that will bring transparency and reliability to commercial eye-tracking data.</p>
+      </div>
+    </div>
+
     <div class="person join rv">
       <div class="join-slot" aria-hidden="true"><span>?<i>_</i></span></div>
       <div>
@@ -918,7 +1020,7 @@ section.scene-active .kicker-line,.kicker-line{opacity:.72!important;transform:n
 <section id="media" class="pillar" data-chapter="Echoes">
   <div class="num">07 / 07</div>
   <div class="kicker rv" data-index="07"><span class="kicker-label">Media &amp; Resources</span><span class="kicker-line"></span><span class="kicker-status" aria-hidden="true">Active</span></div>
-  <h2 class="rv rv-d1" data-depth="0.09">Signals beyond the <em>lab</em></h2>
+  <h2 class="rv rv-d1">Signals beyond the <em>lab</em></h2>
   <div class="links-grid rv rv-d2">
     <a class="link-tile" href="https://www.3sat.de/wissen/scobel/scobel---digitale-universen-100.html" target="_blank" rel="noopener">
       <span class="lt-k">TV — 3sat</span><h4>scobel: Digitale Universen</h4>
@@ -1095,6 +1197,27 @@ document.querySelectorAll(".rv").forEach(el=>io.observe(el));
 const reduceMotion=matchMedia("(prefers-reduced-motion: reduce)").matches;
 const Z_START=60,Z_END=-640,TRAVEL=Z_START-Z_END; /* 700 */
 let three=null;
+// Match each specimen to the section entrance, including taller mobile layouts.
+const chapterDepths={hero:60,lab:-16,vr:-83,synthetic:-153,findings:-222,
+  experiments:-296,book:-346,people:-433,media:-508,contact:-608};
+let cameraStops=[];
+function measureCameraStops(){
+  const end=document.documentElement.scrollHeight-innerHeight;
+  cameraStops=Object.entries(chapterDepths).map(([id,z])=>({
+    y:id==="hero"?0:document.getElementById(id).offsetTop,z
+  })).filter(stop=>stop.y<end);
+  cameraStops.push({y:end,z:Z_END});
+}
+function depthAtScroll(y){
+  for(let i=1;i<cameraStops.length;i++){
+    const a=cameraStops[i-1],b=cameraStops[i];
+    if(y<=b.y)return a.z+(b.z-a.z)*Math.max(0,(y-a.y)/(b.y-a.y));
+  }
+  return Z_END;
+}
+measureCameraStops();
+new ResizeObserver(measureCameraStops).observe(document.body);
+window.addEventListener("resize",measureCameraStops);
 
 (function initThree(){
   if(typeof THREE==="undefined")return;
@@ -1109,11 +1232,9 @@ let three=null;
     scene.fog=new THREE.FogExp2(0x05050a,0.011);
     const camera=new THREE.PerspectiveCamera(62,innerWidth/innerHeight,.1,260);
     const returning=document.documentElement.classList.contains("skip-intro");
-    const startMax=document.documentElement.scrollHeight-innerHeight;
     const returnTarget=returning&&location.hash?document.getElementById(location.hash.slice(1)):null;
     const startY=returnTarget?returnTarget.offsetTop:scrollY;
-    const startProgress=returning&&startMax>0?startY/startMax:0;
-    const startZ=returning?Z_START-TRAVEL*startProgress:Z_START+36;
+    const startZ=returning?depthAtScroll(startY):Z_START+36;
     camera.position.set(0,0,startZ); /* return visits start at their current section */
     /* wide screens push the totems a little further off the rail */
     const XF=Math.min(1.35,Math.max(1,(innerWidth/innerHeight)/1.55));
@@ -1127,13 +1248,25 @@ let three=null;
     const cv=document.createElement("canvas");cv.width=cv.height=64;
     const cx=cv.getContext("2d");
     const grad=cx.createRadialGradient(32,32,0,32,32,32);
-    grad.addColorStop(0,"rgba(255,255,255,1)");grad.addColorStop(.4,"rgba(255,255,255,.6)");grad.addColorStop(1,"rgba(255,255,255,0)");
+    grad.addColorStop(0,"white");
+    grad.addColorStop(.16,"rgba(255,255,255,.92)");
+    grad.addColorStop(.40,"rgba(255,255,255,.24)");
+    grad.addColorStop(1,"rgba(255,255,255,0)");
     cx.fillStyle=grad;cx.fillRect(0,0,64,64);
     const sprite=new THREE.CanvasTexture(cv);
 
-    function pointsMat(size,opacity){return new THREE.PointsMaterial({
+    function pointsMat(size,opacity){
+      const material=new THREE.PointsMaterial({
       size,map:sprite,vertexColors:true,transparent:true,opacity,
-      depthWrite:false,blending:THREE.AdditiveBlending,sizeAttenuation:true});}
+      depthWrite:false,blending:THREE.AdditiveBlending,sizeAttenuation:true});
+      material.onBeforeCompile=shader=>{
+        shader.vertexShader="varying float nearFade;\n"+shader.vertexShader.replace(
+          "#include <fog_vertex>","#include <fog_vertex>\nnearFade=smoothstep(3.0,20.0,-mvPosition.z);\ngl_PointSize=min(gl_PointSize,14.0);");
+        shader.fragmentShader="varying float nearFade;\n"+shader.fragmentShader.replace(
+          "#include <map_particle_fragment>","#include <map_particle_fragment>\ndiffuseColor.a*=nearFade;");
+      };
+      return material;
+    }
     function lineMat(opacity){return new THREE.LineBasicMaterial({
       vertexColors:true,transparent:true,opacity,
       depthWrite:false,blending:THREE.AdditiveBlending});}
@@ -1149,8 +1282,67 @@ let three=null;
       g.setAttribute("color",new THREE.BufferAttribute(col,3));
       return new THREE.LineSegments(g,lineMat(op));
     }
+    function dottedTraces(endpoints,colors,size,opacity){
+      const positions=[],shades=[],spacing=mobile ? .77 : .54;
+      for(let i=0;i<endpoints.length;i+=6){
+        const dx=endpoints[i+3]-endpoints[i],dy=endpoints[i+4]-endpoints[i+1],dz=endpoints[i+5]-endpoints[i+2];
+        const steps=Math.max(1,Math.ceil(Math.hypot(dx,dy,dz)/spacing));
+        for(let j=0;j<steps;j++){
+          const t=j/steps;
+          for(let axis=0;axis<3;axis++){
+            const k=i+axis;
+            positions.push(endpoints[k]+(endpoints[k+3]-endpoints[k])*t);
+            shades.push(colors[k]+(colors[k+3]-colors[k])*t);
+          }
+        }
+      }
+      return buildPoints(new Float32Array(positions),new Float32Array(shades),size,opacity);
+    }
     const cull=[]; /* {obj,zc,range} — hide far-away layers */
     function add(obj,zc,range){scene.add(obj);cull.push({obj,zc,range:range||220});return obj}
+
+    function scrollSpecimen(group,depth,stops){
+      add(group,depth,210);
+      if(reduceMotion)return;
+      const phase={value:0};
+      cull[cull.length-1].formation={phase,stops};
+      group.traverse(points=>{
+        if(!points.isPoints)return;
+        const geometry=points.geometry,position=geometry.attributes.position;
+        const flight=new Float32Array(position.count*4);
+        // Per-point trajectories are fixed at creation, so reversing scroll retraces them.
+        for(let i=0;i<position.count;i++){
+          const x=position.getX(i),y=position.getY(i),z=position.getZ(i);
+          const angle=Math.atan2(y,x)+R(-.8,.8),radius=R(7,20);
+          flight.set([radius*Math.cos(angle),radius*Math.sin(angle),R(-14,14),
+            THREE.MathUtils.clamp(.5+x*.018+y*.009+R(-.22,.22),0,1)],4*i);
+        }
+        geometry.setAttribute("particleFlight",new THREE.BufferAttribute(flight,4));
+        geometry.computeBoundingSphere();
+        geometry.boundingSphere.radius+=36;
+        const material=points.material,compile=material.onBeforeCompile;
+        const priorKey=material.customProgramCacheKey();
+        material.customProgramCacheKey=()=>priorKey+"-scroll-particles";
+        material.onBeforeCompile=shader=>{
+          compile(shader);
+          shader.uniforms.formationPhase=phase;
+          shader.vertexShader="uniform float formationPhase; attribute vec4 particleFlight;\n"+shader.vertexShader
+            .replace("#include <begin_vertex>",`#include <begin_vertex>
+              float order=particleFlight.w;
+              // Each particle flies for 60% of the phase on a quintic ease, staggered by its order.
+              float arrive=clamp((formationPhase-.40*order)/.60,0.0,1.0);
+              float depart=clamp((formationPhase-1.0-.40*(1.0-order))/.60,0.0,1.0);
+              float gathering=1.0-arrive*arrive*arrive*(arrive*(arrive*6.0-15.0)+10.0);
+              float shedding=depart*depart*depart*(depart*(depart*6.0-15.0)+10.0);
+              vec3 flight=particleFlight.xyz;
+              transformed+=gathering*flight + shedding*vec3(-flight.y,flight.x+5.0,-flight.z);
+              transformed.xy+=vec2(-flight.y,flight.x)*.28*sin(3.14159*(gathering+shedding));`)
+            .replace("#include <project_vertex>",`vColor*=mix(1.0,.13,gathering+shedding)
+                *(1.0-smoothstep(1.75,2.0,formationPhase));
+              #include <project_vertex>`);
+        };
+      });
+    }
 
     /* ---------- dust : sparse, kept OUT of the center so totems own the stage ---------- */
     (function(){
@@ -1165,305 +1357,437 @@ let three=null;
       scene.add(buildPoints(pos,col,0.45,0.6)); /* always visible */
     })();
 
-    /* ---------- the brain : first totem on the path, off to the right (z ≈ -15) ---------- */
-    const BS=.46,BX=17*XF,BZ=-15; /* smaller, denser, fully beside the path */
-    function cortexSurf(th,f){
-      let x=44*Math.sin(th)*Math.cos(f),y=31*Math.cos(th),z=38*Math.sin(th)*Math.sin(f);
-      x+=Math.sign(x)*3.4;                          /* longitudinal fissure */
-      y+=8*Math.exp(-((z+24)*(z+24))/300)*0.4;      /* frontal lobe lift */
-      const fold=Math.sin(x*.55)*Math.sin(y*.7)*Math.sin(z*.6)
-                +Math.sin(x*1.4+1)*Math.sin(y*1.2)*Math.sin(z*1.3)*.45;
-      const s=(1+fold*.13)*BS; /* deeper ridge/sulcus separation */
-      return [x*s+BX,y*s*.9,z*s+BZ];
+    // Accumulate a sampled object in one draw call; coordinates stay in specimen space.
+    const scanTime={value:0};
+    function scanCloud(){
+      const positions=[],colors=[];
+      return {
+        dot(x,y,z,color,power=1){
+          positions.push(x,y,z);
+          colors.push(color.r*power,color.g*power,color.b*power);
+        },
+        points(size,sweep=true){
+          const object=buildPoints(new Float32Array(positions),new Float32Array(colors),size,1);
+          if(sweep&&!reduceMotion){
+            const compile=object.material.onBeforeCompile;
+            object.material.onBeforeCompile=shader=>{
+              compile(shader);
+              shader.uniforms.scanTime=scanTime;
+              shader.vertexShader="uniform float scanTime;\n"+shader.vertexShader.replace(
+                "#include <color_vertex>",
+                "#include <color_vertex>\nfloat band=(fract(position.y*.029-scanTime*.11)-.5)/.046;\nvColor+=vec3(.26,.48,.56)*exp(-band*band);");
+            };
+          }
+          return object;
+        }
+      };
     }
-    (function(){
-      const pts=[],cols=[],t=new THREE.Color();
-      /* gyri — dense, parallel anterior–posterior ridges, like real cortex */
-      const STROKES=Math.floor(400*K)+130;
-      for(let k=0;k<STROKES;k++){
-        let th=Math.acos(2*Math.random()-1),f=Math.random()*Math.PI*2;
-        /* strokes run mostly along the longitude — winding front-to-back arcs */
-        let dth=R(-.014,.014),df=(Math.random()<.5?1:-1)*R(.06,.1);
-        const steps=34+(Math.random()*30|0);
-        t.copy(VIOLET).lerp(PINK,Math.random()*.7).multiplyScalar(R(1.05,1.7));
-        for(let s=0;s<steps;s++){
-          th+=dth+R(-.01,.01);f+=df+R(-.012,.012);
-          th=Math.max(.18,Math.min(Math.PI-.18,th));
-          const p=cortexSurf(th,f);
-          pts.push(p[0]+R(-.07,.07),p[1]+R(-.07,.07),p[2]+R(-.07,.07));
-          const fade=.55+.45*Math.sin(s/steps*Math.PI);
-          cols.push(t.r*fade,t.g*fade,t.b*fade);
+    const phosphorBlue=new THREE.Color(0x36ddff),phosphorPink=new THREE.Color(0xff47bc);
+    // Sample each conductor once. Connected branches inherit the upstream arrival time.
+    function pulseCloud(period){
+      const positions=[],colors=[],arrivals=[],sizes=[];
+      function sample(p,color,arrival,size){
+        positions.push(p.x,p.y,p.z);
+        colors.push(color.r,color.g,color.b);
+        arrivals.push(arrival);sizes.push(size);
+      }
+      function trace(path,start,speed,color){
+        const length=path.getLength();
+        const steps=Math.max(2,Math.ceil(length/(mobile ? .38 : .25)));
+        path.getSpacedPoints(steps).forEach((p,i)=>{
+          sample(p,color,start+(i/steps)*length/speed,1);
+        });
+        return start+length/speed;
+      }
+      function points(){
+        const cloud=buildPoints(new Float32Array(positions),new Float32Array(colors),mobile ? .66 : .60,1);
+        cloud.geometry.setAttribute("arrival",new THREE.Float32BufferAttribute(arrivals,1));
+        cloud.geometry.setAttribute("spotSize",new THREE.Float32BufferAttribute(sizes,1));
+        const compile=cloud.material.onBeforeCompile;
+        cloud.material.onBeforeCompile=shader=>{
+          compile(shader);
+          shader.uniforms.signalClock=reduceMotion ? {value:1.6} : scanTime;
+          shader.uniforms.signalPeriod={value:period};
+          shader.vertexShader="attribute float arrival, spotSize; uniform float signalClock, signalPeriod;\n"+shader.vertexShader
+            .replace("#include <color_vertex>",`#include <color_vertex>
+              float age=mod(signalClock-arrival,signalPeriod);
+              float pulse=exp(-age/(.14+.045*spotSize));
+              vColor=vColor*(.40+1.95*pulse)+vec3(.88,.85,.74)*pulse*pulse;`)
+            .replace("gl_PointSize = size;","gl_PointSize = size*spotSize*(1.0+.62*pulse);");
+        };
+        return cloud;
+      }
+      return {trace,node:(p,color,time)=>sample(p,color,time,2.6),points};
+    }
+    // One anatomical cortex, shared by the cerebrum and the hybrid cortex.
+    const cortex=(function(){
+      // Seeded, so the folding pattern is identical on every visit.
+      let seed=20261115;
+      const rnd=()=>{
+        seed=seed+0x6D2B79F5|0;
+        let v=Math.imul(seed^seed>>>15,1|seed);
+        v=v+Math.imul(v^v>>>7,61|v)^v;
+        return ((v^v>>>14)>>>0)/4294967296;
+      };
+      const outline=[[-16,0],[-16,4],[-13,8],[-9,10],[-4,11.5],[1,11.6],[7,10.7],[12,8.2],[15,5],[16,1],[15,-2.4],[11,-4.2],[6,-4],[3,-6.3],[-1,-6.8],[-4,-5.8],[-6,-3.8],[-12,-3.5]];
+      // The named fissures are drawn by hand; the gyri between them are grown procedurally.
+      const fissures=[
+        {width:1.25,path:[[-6.2,-3.7],[-3.4,-3.2],[-.4,-2.4],[2.8,-1.5],[5.8,0],[8.4,2]]}, /* Sylvian */
+        {width:.72,path:[[1.2,11.6],[.4,8.6],[-.6,5.6],[-1.5,2.6],[-2.4,-.4]]},           /* central */
+        {width:.58,path:[[11.6,8.5],[11,6],[11.8,3.6]]}                                   /* parieto-occipital */
+      ];
+      const curve=(points,closed=false)=>new THREE.CatmullRomCurve3(
+        points.map(([x,y])=>new THREE.Vector3(x,y,0)),closed);
+      const grooves=fissures.map(f=>({spread:f.width*f.width,
+        samples:curve(f.path).getSpacedPoints(f.path.length*5)}));
+      // Nodal lines of a random wave field meander like sulci; one wavelength spans two gyri.
+      const waves=[];
+      for(let i=0;i<10;i++){
+        const cz=2*rnd()-1,a=rnd()*Math.PI*2,s=Math.sqrt(1-cz*cz);
+        const k=Math.PI*2/((mobile?5.2:4.0)+1.4*rnd());
+        waves.push([k*s*Math.cos(a),k*s*Math.sin(a),k*cz,rnd()*Math.PI*2]);
+      }
+      const gyrusField=(x,y,z)=>{
+        let n=0;
+        for(const w of waves)n+=Math.sin(w[0]*x+w[1]*y+w[2]*z+w[3]);
+        return n/Math.sqrt(waves.length/2);
+      };
+      const columns=mobile?146:236,fullness=.84;
+      const outlineSamples=curve(outline,true).getSpacedPoints(columns);
+      // Smooth surface of one hemisphere: u runs once round the lateral silhouette (0…1),
+      // latitude from the midline (0) out to the lateral pole (π/2).
+      function surface(u,latitude){
+        const radial=Math.cos(latitude)**fullness,s=(u-Math.floor(u))*columns;
+        const index=Math.min(columns-1,Math.floor(s)),a=outlineSamples[index],b=outlineSamples[index+1];
+        return [(a.x+(b.x-a.x)*(s-index))*radial,2+(a.y+(b.y-a.y)*(s-index)-2)*radial,
+                .3+10.6*Math.sin(latitude)**fullness];
+      }
+      // Jittered scan of one folded hemisphere; visit(x,y,z,latitude,sulcus,rim,crown).
+      function scanHemisphere(side,rows,density,visit){
+        for(let j=0;j<rows;j++){
+          const ringLatitude=(j+.35)/rows*Math.PI/2;
+          const steps=Math.max(4,Math.round(columns*density*Math.cos(ringLatitude)**fullness));
+          for(let i=0;i<steps;i++){
+            const latitude=THREE.MathUtils.clamp(ringLatitude+(rnd()-.5)*.7/rows*Math.PI/2,.003,Math.PI/2-.003);
+            let [x,y,z]=surface((i+(j%2)*.5+.7*(rnd()-.5)+steps)/steps,latitude);
+            let fissure=0;
+            for(const g of grooves){
+              let distance=400;
+              for(const p of g.samples)distance=Math.min(distance,(x-p.x)**2+(y-p.y)**2);
+              fissure=Math.max(fissure,Math.exp(-distance/g.spread));
+            }
+            const n=gyrusField(x,y,side*z);
+            const sulcus=Math.max(Math.exp(-n*n/.2),fissure);
+            // Thin the scan inside the grooves so they read as real gaps.
+            if(sulcus>.7&&rnd()<.55)continue;
+            const rim=Math.exp(-(((Math.abs(n)-.62)/.22)**2))*(1-fissure);
+            const sink=1-.065*sulcus-.045*fissure;
+            const crown=Math.exp(-latitude*latitude/.022);
+            visit(x*sink,(2+(y-2)*sink)*(1-.12*crown),side*z*sink,latitude,sulcus,rim,crown);
+          }
         }
       }
-      add(buildPoints(new Float32Array(pts),new Float32Array(cols),0.62,.95),BZ,260);
+      return {surface,scanHemisphere,rnd};
     })();
-    /* cerebellum — finely striated, tucked under the back */
+    const brain=new THREE.Group();
     (function(){
-      const pts=[],cols=[],t=new THREE.Color();
-      const RINGS=Math.floor(36*K)+14;
-      for(let j=0;j<RINGS;j++){
-        const v=j/(RINGS-1),y=(-20-12*v+6*Math.sin(v*9))*BS;
-        const ry=Math.cos((v-.5)*Math.PI);
-        t.copy(PINK).lerp(VIOLET,v).multiplyScalar(R(.7,1.2));
-        for(let i=0;i<Math.floor(62*K)+22;i++){
-          const a=R(0,Math.PI*2);
-          pts.push(15*BS*ry*Math.cos(a)+BX+R(-.12,.12),y+R(-.12,.12),
-                   BZ+(-22-10*ry*Math.sin(a)*.8)*BS+R(-.12,.12));
-          cols.push(t.r,t.g,t.b);
+      const scan=scanCloud(),color=new THREE.Color();
+      // Wrap the lateral silhouette over both hemispheres, then fold the cortex.
+      for(const side of [-1,1])cortex.scanHemisphere(side,mobile?44:70,1,(x,y,z,latitude,sulcus,rim,crown)=>{
+        const mix=.46+.33*Math.sin(x*.10-latitude*1.8)+.16*y/12;
+        color.copy(phosphorBlue).lerp(phosphorPink,mix).lerp(PINK,.34*(1-sulcus));
+        const light=(side===1?1.18:.27)*(.58+.42*Math.sin(latitude)+.25*y/12);
+        scan.dot(x,y,z,color,light*(.17+.86*(1-sulcus)+.62*rim)*(1-.48*crown));
+      });
+      // Cerebellum: two lobes of tight horizontal folia, tucked under the occipital lobe.
+      const folia=mobile?20:30,around=mobile?60:96;
+      for(let j=1;j<folia;j++){
+        const v=j/folia,ring=Math.sin(v*Math.PI)**.85;
+        for(let i=0;i<around;i++){
+          const a=(i+.5*(j%2))/around*Math.PI*2,c=Math.cos(a),s=Math.sin(a);
+          const vermis=c>0?1-.17*Math.exp(-s*s/.035):1;
+          color.copy(VIOLET).lerp(phosphorPink,.22+.2*v);
+          scan.dot(9.6+5.3*ring*vermis*c,-6.4+3.5*Math.cos(v*Math.PI),8.4*ring*s,
+            color,(j%2?.98:.46)*(.60+.36*s));
         }
       }
-      add(buildPoints(new Float32Array(pts),new Float32Array(cols),0.6,.9),BZ-12,240);
-    })();
-    /* brainstem — tapering down and forward */
-    (function(){
-      const n=Math.floor(360*K)+120,pts=new Float32Array(n*3),cols=new Float32Array(n*3),t=new THREE.Color();
-      for(let i=0;i<n;i++){
-        const v=Math.random(),a=R(0,Math.PI*2),r=(4.2-v*2.2)*Math.sqrt(Math.random()*.4+.6);
-        pts[i*3]=r*Math.cos(a)*BS+BX;
-        pts[i*3+1]=(-16-v*20)*BS;
-        pts[i*3+2]=BZ+(-12+v*7+r*Math.sin(a))*BS;
-        t.copy(VIOLET).multiplyScalar(R(.5,.95));
-        cols[i*3]=t.r;cols[i*3+1]=t.g;cols[i*3+2]=t.b;
+      // Brainstem: the pons bulges forward before the medulla tapers away.
+      for(let j=0;j<22;j++)for(let i=0;i<22;i++){
+        const v=j/21,a=(i+.5*(j%2))/22*Math.PI*2,pons=Math.exp(-(((v-.24)/.15)**2));
+        const r=1.95-.8*v+.75*pons;
+        scan.dot(4.1+1.9*v-.5*pons+r*Math.cos(a),-4.6-7.6*v,r*1.2*Math.sin(a),
+          phosphorBlue,.46+.2*Math.sin(a));
       }
-      add(buildPoints(pts,cols,0.85,.9),BZ-8,240);
+      brain.add(scan.points(mobile ? .46 : .37,false));
+
+      const axons=pulseCloud(5.8);
+      const neurons=[
+        [-12,1,2],[-8,3.2,4.3],[-3,1,2.6],[-5,6.5,2.8],
+        [1,4,5.2],[3,-1.5,2.9],[7,5.8,1.5],[10,1.7,3.2],
+        [-1,8.1,1.0],[7,-2.2,1.4],[-8,-.5,-2],[2,3,-4.2]
+      ].map(p=>new THREE.Vector3(...p));
+      function fire(from,to,start,bend,color){
+        const a=neurons[from],b=neurons[to];
+        const mid=a.clone().lerp(b,.55).add(new THREE.Vector3(.35,bend,-.60));
+        const end=axons.trace(new THREE.CatmullRomCurve3([a,mid,b]),start,8.2,color);
+        axons.node(b,color,end);
+        return end+.10;
+      }
+      axons.node(neurons[0],phosphorPink,0);
+      const fork=fire(0,1,0,.7,phosphorPink);
+      const relay=fire(1,2,fork,-.8,PINK);
+      const upper=fire(1,3,fork,.55,phosphorPink);
+      fire(3,8,upper,.52,PINK);
+      const deep=fire(2,4,relay,.65,phosphorBlue);
+      fire(4,6,deep,-.8,phosphorBlue);
+      fire(4,7,deep,.35,PINK);
+      const lower=fire(2,5,relay,-.65,PINK);
+      fire(5,9,lower,.6,phosphorPink);
+      axons.node(neurons[10],phosphorBlue,3.15);
+      const cross=fire(10,11,3.15,-.5,phosphorBlue);
+      fire(11,7,cross,1.1,phosphorBlue);
+      brain.add(axons.points());
+      brain.rotation.set(.22,-.45,-.08);
+      brain.position.set(mobile?0:29*XF,mobile?35:1,-15); /* phones: above the headline */
+      if(mobile)brain.scale.setScalar(.42);
+      // Already whole at the top of the page; on a first visit it flies together once the intro ends.
+      scrollSpecimen(brain,-15,[84,60,27,3]);
+      if(cull[cull.length-1].formation)cull[cull.length-1].formation.entrance=!returning;
     })();
 
-    /* ---------- ONE neuron : the grey-matter totem (z ≈ -72) ---------- */
+    /* ---------- ONE neuron : a pyramidal cell, the grey-matter totem (z ≈ -78) ---------- */
     const neuronSegs=[];
+    let neuronMat=null;
     (function(){
-      const t=new THREE.Color();
-      const segs=[],segCols=[],glow=[],glowCols=[];
-      const SX=-14*XF,SY=1,SZ=-78; /* second totem: left of the path */
-      /* soma — dense luminous core */
-      const nS=Math.floor(450*K)+140;
-      for(let i=0;i<nS;i++){
-        const th=Math.acos(2*Math.random()-1),f=R(0,Math.PI*2),r=2.7*Math.cbrt(Math.random());
-        glow.push(SX+r*Math.sin(th)*Math.cos(f),SY+r*Math.cos(th),SZ+r*Math.sin(th)*Math.sin(f));
-        t.copy(PINK).lerp(WHITE,Math.random()*.5).multiplyScalar(R(1,1.6));
-        glowCols.push(t.r,t.g,t.b);
-      }
-      /* dendrites — branching twice, dotted for thickness */
-      function branch(px,py,pz,vx,vy,vz,len,depth,col){
-        for(let s=0;s<4;s++){
-          const nx=px+vx*len+R(-.8,.8),ny=py+vy*len+R(-.8,.8),nz=pz+vz*len+R(-.8,.8);
-          segs.push(px,py,pz,nx,ny,nz);
-          neuronSegs.push([[px,py,pz],[nx,ny,nz]]);
-          const f2=Math.max(.15,.95-depth*.2-s*.1);
-          segCols.push(col.r*f2,col.g*f2,col.b*f2,
-                       col.r*(f2-.1),col.g*(f2-.1),col.b*(f2-.1));
-          for(let d2=0;d2<3;d2++){
-            const u=Math.random();
-            glow.push(px+(nx-px)*u+R(-.25,.25),py+(ny-py)*u+R(-.25,.25),pz+(nz-pz)*u+R(-.25,.25));
-            t.copy(col).multiplyScalar(R(.5,.9)*f2);
-            glowCols.push(t.r,t.g,t.b);
+      const cell=new THREE.Group(),scan=scanCloud(),color=new THREE.Color(),rnd=cortex.rnd;
+      const V=(x,y,z)=>new THREE.Vector3(x,y,z);
+      const wander=s=>V((rnd()-.5)*s,(rnd()-.5)*s,(rnd()-.5)*s);
+      const paths=[]; /* fibre segments in cell space; action potentials ride these */
+      // Sample a tapering fibre: a sleeve of dots where it is thick, single dots where it is thin.
+      function fibre(curve,r0,r1,tint,light,spines){
+        const steps=Math.max(3,Math.ceil(curve.getLength()/(mobile ? .5 : .34)));
+        const pts=curve.getSpacedPoints(steps);
+        for(let i=0;i<=steps;i++){
+          const p=pts[i],r=r0+(r1-r0)*i/steps;
+          if(r>.22)for(let k=0;k<Math.max(3,Math.round(r*8));k++){
+            const v=wander(1).normalize().multiplyScalar(r);
+            scan.dot(p.x+v.x,p.y+v.y,p.z+v.z,tint,light*(.7+.3*rnd()));
+          }else scan.dot(p.x,p.y,p.z,tint,light);
+          if(spines&&rnd()<spines){ /* dendritic spine */
+            const v=wander(1).normalize().multiplyScalar(.55+.5*rnd());
+            scan.dot(p.x+v.x,p.y+v.y,p.z+v.z,PINK,light*.85);
           }
-          px=nx;py=ny;pz=nz;
-          vx+=R(-.3,.3);vy+=R(-.3,.3);vz+=R(-.3,.3);
-          const m=Math.hypot(vx,vy,vz)||1;vx/=m;vy/=m;vz/=m;
-          len*=.82;
+          if(i>0&&i%3===0)paths.push([pts[i-3],p]);
         }
-        if(depth<2)for(let b=0;b<2;b++)
-          branch(px,py,pz,vx+R(-.7,.7),vy+R(-.7,.7),vz+R(-.7,.7),len,depth+1,col);
+        return pts;
       }
-      for(let b2=0;b2<8;b2++){
-        const dx=R(-1,1),dy=R(-1,1),dz=R(-1,1),m=Math.hypot(dx,dy,dz)||1;
-        t.copy(VIOLET).lerp(PINK,Math.random());
-        branch(SX,SY,SZ,dx/m,dy/m,dz/m,R(4.5,7),0,t.clone());
+      // A dendrite wanders, tapers and forks.
+      function dendrite(from,dir,length,radius,depth,tint){
+        const mid=from.clone().addScaledVector(dir,length*.5).add(wander(length*.24));
+        const end=from.clone().addScaledVector(dir,length).add(wander(length*.26));
+        fibre(new THREE.CatmullRomCurve3([from,mid,end]),radius,radius*.6,tint,1.45-.2*depth,.15);
+        if(depth>=3)return;
+        const heading=end.clone().sub(mid).normalize();
+        for(let b=0;b<2;b++)
+          dendrite(end,heading.clone().add(wander(1.5)).normalize(),length*.72,radius*.6,depth+1,tint);
       }
-      /* axon — one long fibre reaching deeper into the descent */
-      branch(SX,SY,SZ,-.4,-.12,-.9,10,1,CYAN.clone().lerp(VIOLET,.4));
-      add(buildLines(new Float32Array(segs),new Float32Array(segCols),0.85),-78,170);
-      add(buildPoints(new Float32Array(glow),new Float32Array(glowCols),1.15,1),-78,170);
+      // Soma — the pyramid that gives the cell its name: apex up, broad base.
+      const somaDots=mobile?260:460;
+      for(let i=0;i<somaDots;i++){
+        const ny=1-2*(i+.5)/somaDots,ring=Math.sqrt(1-ny*ny),a=i*2.39996;
+        const taper=1-.5*Math.max(0,ny);
+        color.copy(PINK).lerp(WHITE,.25+.3*ring);
+        scan.dot(2.5*ring*taper*Math.cos(a),ny*(ny>0?3.6:2.3),2.5*ring*taper*Math.sin(a),
+          color,.8+.5*ring+.3*Math.sin(a));
+      }
+      for(let i=0;i<(mobile?26:44);i++){ /* nucleus */
+        const v=wander(1).normalize().multiplyScalar(.85*Math.cbrt(rnd()));
+        scan.dot(v.x,v.y-.3,v.z,WHITE,1.5);
+      }
+      // Apical dendrite: one thick trunk, oblique branches, a tuft at the top.
+      color.copy(VIOLET).lerp(PINK,.45);
+      const apical=color.clone();
+      const trunk=fibre(new THREE.CatmullRomCurve3([V(0,3.2,0),V(.5,7.5,.3),V(-.2,11.5,-.4),V(.7,15.2,0)]),
+        .78,.42,apical,1.4,.2);
+      for(const at of [.3,.5,.68,.84]){
+        const p=trunk[Math.round(at*(trunk.length-1))],side=rnd()<.5?-1:1;
+        dendrite(p.clone(),V(side*(.8+.3*rnd()),.5,rnd()-.5).normalize(),4.6,.3,2,apical);
+      }
+      for(let b=0;b<4;b++)
+        dendrite(trunk[trunk.length-1].clone(),V(Math.cos(b*1.57+.4)*.75,.8,Math.sin(b*1.57+.4)*.6).normalize(),
+          4.8,.36,1,apical);
+      // Basal dendrites fan out from the base of the pyramid.
+      for(let b=0;b<5;b++){
+        const a=b/5*Math.PI*2+.3;
+        color.copy(VIOLET).lerp(PINK,.15+.5*rnd());
+        dendrite(V(1.9*Math.cos(a),-1.7,1.9*Math.sin(a)),V(Math.cos(a),-.38-.3*rnd(),.7*Math.sin(a)).normalize(),
+          6.2,.44,0,color.clone());
+      }
+      // Axon: thin, long, myelinated — bright sheaths separated by nodes of Ranvier.
+      const axon=new THREE.CatmullRomCurve3([V(0,-2.3,0),V(-.5,-7,-.8),V(.6,-13,-1.8),V(-.9,-19,-3),V(-.4,-23,-3.6)]);
+      const axonSteps=mobile?90:150,axonPts=axon.getSpacedPoints(axonSteps);
+      axonPts.forEach((p,i)=>{
+        const sheath=(i/axonSteps*8+.12)%1<.8&&i>axonSteps*.06;
+        if(sheath)for(let k=0;k<3;k++){
+          const v=wander(1).normalize().multiplyScalar(.42);
+          scan.dot(p.x+v.x,p.y+v.y,p.z+v.z,phosphorBlue,.8);
+        }else scan.dot(p.x,p.y,p.z,WHITE,1.3);
+        if(i>0&&i%3===0)paths.push([axonPts[i-3],p]);
+      });
+      // A collateral and the terminal arbor, each ending in synaptic boutons.
+      function terminal(from,dir,length){
+        const pts=fibre(new THREE.CatmullRomCurve3([from,from.clone().addScaledVector(dir,length*.5).add(wander(1.2)),
+          from.clone().addScaledVector(dir,length).add(wander(1.4))]),.1,.1,CYAN,.85,0);
+        const tip=pts[pts.length-1];
+        for(let k=0;k<(mobile?7:12);k++){
+          const v=wander(1).normalize().multiplyScalar(.45);
+          scan.dot(tip.x+v.x,tip.y+v.y,tip.z+v.z,YELL,1.25);
+        }
+      }
+      terminal(axonPts[Math.round(axonSteps*.42)].clone(),V(.9,-.35,.3).normalize(),5.5);
+      for(let b=0;b<4;b++)
+        terminal(axonPts[axonSteps].clone(),V(Math.cos(b*1.6)*.8,-.7,Math.sin(b*1.6)*.6).normalize(),3.6);
+      const cellCloud=scan.points(mobile ? .8 : .72,false);
+      cellCloud.material.userData.size=cellCloud.material.size;
+      neuronMat=cellCloud.material;
+      cell.add(cellCloud);
+      cell.scale.setScalar(mobile ? .62 : 1.25);
+      cell.rotation.set(.06,-.35,.14);
+      cell.position.set(mobile?0:21*XF,mobile?14:3,-78); /* second totem: right, clear of the text column */
+      add(cell,-78,170);
+      cell.updateMatrixWorld(true);
+      for(const [a,b] of paths)neuronSegs.push([
+        a.clone().applyMatrix4(cell.matrixWorld).toArray(),b.clone().applyMatrix4(cell.matrixWorld).toArray()]);
     })();
 
-    /* ---------- the headset : a head wearing a VR HMD (z ≈ -130) ---------- */
-    let hmd=null;
+    // Raster the visor, strap and optics into one open, three-dimensional scan.
+    const hmd=new THREE.Group();
     (function(){
-      const grp=new THREE.Group();
-      const t=new THREE.Color();
-      /* ghosted human head — anatomically believable */
-      const headPts=[],headCols=[];
-      const nH=Math.floor(2600*K)+600;
-      for(let i=0;i<nH;i++){
-        const th=Math.acos(2*Math.random()-1),f=Math.random()*Math.PI*2;
-        let X=7.8*Math.sin(th)*Math.cos(f),Y=10*Math.cos(th),Z=8.8*Math.sin(th)*Math.sin(f);
-        if(Z<-2.5)Z*=1.12;                                /* occiput bulge at the back */
-        if(Z>5.2&&Y>-3.5&&Y<6.5)Z=5.2+(Z-5.2)*.4;         /* flat facial plane */
-        if(Y>6.5)Z*=.92;                                  /* crown rounds backward */
-        if(Y<-3.5){                                       /* jaw narrows to a chin */
-          const k2=Math.max(.45,1-(-3.5-Y)*.085);
-          X*=k2;Z*=k2*.95;
-          if(Z>0)Z+=(-3.5-Y)*.14;                         /* chin juts slightly */
+      const scan=scanCloud(),color=new THREE.Color(),step=mobile ? .54 : .40;
+      const faceZ=(x,y)=>8.7-.022*x*x-.009*y*y;
+      const HOUSING=5.4; /* depth of the visor housing behind the front plate */
+      for(let row=0;row*step<=10;row++){
+        const y=-5+row*step;
+        for(let x=-10+(row%2)*step/2;x<=10;x+=step){
+          const nose=y<0?1.5*Math.exp(-x*x/8):0;
+          const edge=(Math.abs(x)/10)**3.4+(Math.abs(y-nose)/4.7)**3.4;
+          if(edge>1)continue;
+          // Leave three dark apertures in the scan, then sample their bezels separately.
+          if([-6,0,6].some(cx=>((x-cx)/.69)**2+(y/1.38)**2<1))continue;
+          const sheen=Math.exp(-((y-.29*x-1.2)**2)/2.1);
+          color.copy(VIOLET).lerp(phosphorBlue,.25+.68*sheen);
+          scan.dot(x,y,faceZ(x,y),color,.60+.86*sheen+.52*edge);
         }
-        headPts.push(X,Y,Z);
-        t.copy(VIOLET).lerp(WHITE,.3).multiplyScalar(R(.15,.32));
-        headCols.push(t.r,t.g,t.b);
       }
-      /* nose — small ridge under the visor */
-      const nNo=Math.floor(90*K)+30;
-      for(let i=0;i<nNo;i++){
-        const u=Math.random();
-        const ridge=1-Math.abs(u-.62)*2;                  /* tip ~2/3 down */
-        headPts.push(R(-.55,.55)*(1-ridge*.5),-3.3-u*2.3,
-                     6.2+Math.max(0,ridge)*1.5+R(-.12,.12));
-        t.copy(VIOLET).lerp(WHITE,.35).multiplyScalar(R(.2,.38));
-        headCols.push(t.r,t.g,t.b);
-      }
-      /* ears — small shells at the strap line */
-      for(let L=-1;L<=1;L+=2)for(let i=0;i<Math.floor(70*K)+24;i++){
-        const a=R(0,Math.PI*2),r=Math.sqrt(Math.random());
-        headPts.push(L*(7.8+r*.5),0+r*1.9*Math.cos(a),-1.2+r*1.3*Math.sin(a));
-        t.copy(VIOLET).lerp(WHITE,.3).multiplyScalar(R(.18,.34));
-        headCols.push(t.r,t.g,t.b);
-      }
-      /* neck + shoulders */
-      const nN=Math.floor(800*K)+200;
-      for(let i=0;i<nN;i++){
-        if(i%3){ /* shoulders */
-          const X=R(-16,16);
-          headPts.push(X,-15.5-Math.abs(X)*.18+R(-1.1,1.1),R(-4.5,4.5));
-        }else{   /* neck */
-          const a=R(0,Math.PI*2),r=3.6*Math.sqrt(R(.5,1));
-          headPts.push(r*Math.cos(a),R(-15,-9),r*Math.sin(a));
+      const steps=mobile?135:212;
+      const rimX=(c,grow)=>(10+grow)*Math.sign(c)*Math.abs(c)**.588;
+      const rimY=(s,grow)=>(4.7+grow)*Math.sign(s)*Math.abs(s)**.588;
+      for(let layer=0;layer<=12;layer++){
+        const v=layer/12;
+        for(let i=0;i<steps;i++){
+          const a=(i+.5*(layer%2))/steps*Math.PI*2,c=Math.cos(a),s=Math.sin(a);
+          const x=rimX(c,.65*Math.sin(Math.PI*v));
+          const y=rimY(s,.40*Math.sin(Math.PI*v))+(s<0?1.5*Math.exp(-x*x/8):0);
+          color.copy(phosphorBlue).lerp(phosphorPink,v);
+          scan.dot(x,y,faceZ(x,y)-v*HOUSING,color,layer===0||layer===12?1.6:.62+.18*s);
         }
-        t.copy(VIOLET).multiplyScalar(R(.13,.28));
-        headCols.push(t.r,t.g,t.b);
       }
-      grp.add(buildPoints(new Float32Array(headPts),new Float32Array(headCols),0.7,.85));
-      /* visor — proportional to the face: barely wider than the head */
-      const w=9,h=4.8,sgn=v=>v<0?-1:1;
-      const visorZ=x=>10.6-Math.pow(x/w,2)*2.4; /* gentle curve */
-      const bodyPts=[],bodyCols=[];
-      const nF=Math.floor(1600*K)+350;
-      for(let i=0;i<nF;i++){
-        let x,y;
-        do{x=R(-1,1);y=R(-1,1);}while(Math.pow(Math.abs(x),3)+Math.pow(Math.abs(y),3)>1);
-        const X=x*w,Y=1.6+y*h;
-        bodyPts.push(X,Y,visorZ(X)-R(0,2.6)); /* filled volume, not plates */
-        t.copy(VIOLET).multiplyScalar(R(.32,.62));
-        bodyCols.push(t.r,t.g,t.b);
-      }
-      /* straps hugging the skull */
-      const nS=Math.floor(750*K)+180;
-      for(let i=0;i<nS;i++){
-        if(i%4===3){ /* top strap, over the crown */
-          const b=R(.2,Math.PI*.92);
-          bodyPts.push(R(-1.1,1.1),11.4*Math.sin(b)+R(-.1,.1),
-                       11.4*Math.cos(b)+R(-.1,.1));
-        }else{       /* side strap around the head at visor height */
-          const g=R(.75,Math.PI*2-.75); /* leave the front open for the visor */
-          bodyPts.push(10.3*Math.sin(g)+R(-.1,.1),1.2+R(-1.2,1.2),
-                       10.3*Math.cos(g)+R(-.1,.1));
+      // Facial interface: a soft gasket that wraps back around the face, arched over the nose.
+      for(let layer=1;layer<=4;layer++){
+        const v=layer/4;
+        for(let i=layer%2;i<steps;i+=2){
+          const a=i/steps*Math.PI*2,c=Math.cos(a),s=Math.sin(a);
+          const x=rimX(c,-1.1*v);
+          const y=rimY(s,-.5*v)+(s<0?(1.5+1.3*v)*Math.exp(-x*x/6):0);
+          scan.dot(x,y,faceZ(x,y)-HOUSING-v*(.9+2.2*(x/10)**2),PINK,layer===4?1.15:.40);
         }
-        t.copy(VIOLET).multiplyScalar(R(.3,.55));
-        bodyCols.push(t.r,t.g,t.b);
       }
-      /* underside cooling vents */
-      for(let v2=0;v2<5;v2++)for(let i=0;i<Math.floor(14*K)+6;i++){
-        const vx=-4+v2*2;
-        bodyPts.push(vx+R(-.5,.5),1.6-h-.25,visorZ(vx)-R(.4,1.8));
-        t.copy(CYAN).multiplyScalar(R(.3,.6));
-        bodyCols.push(t.r,t.g,t.b);
+      for(const cx of [-6,0,6]){
+        for(let i=0;i<26;i++){
+          const a=i/26*Math.PI*2,x=cx+.69*Math.cos(a),y=1.38*Math.sin(a);
+          scan.dot(x,y,faceZ(x,y)+.13,CYAN,1.45);
+        }
+        scan.dot(cx,.45,faceZ(cx,.45)+.18,WHITE,1.35);
       }
-      /* side speaker pads where strap meets the ears */
-      for(let L=-1;L<=1;L+=2)for(let i=0;i<Math.floor(70*K)+24;i++){
-        const a=R(0,Math.PI*2),r=Math.sqrt(Math.random())*1.7;
-        bodyPts.push(L*10.4+R(-.1,.1),1.2+r*Math.cos(a),-1+r*Math.sin(a));
-        t.copy(VIOLET).multiplyScalar(R(.45,.85));
-        bodyCols.push(t.r,t.g,t.b);
-      }
-      /* adjustment wheel at the back of the strap */
-      for(let i=0;i<Math.floor(80*K)+28;i++){
-        const a=R(0,Math.PI*2),r=1.5+R(-.12,.12);
-        bodyPts.push(R(-.3,.3),1.2+r*Math.cos(a),-10.6+r*Math.sin(a)*.9);
-        t.copy(CYAN).multiplyScalar(R(.7,1.2));
-        bodyCols.push(t.r,t.g,t.b);
-      }
-      grp.add(buildPoints(new Float32Array(bodyPts),new Float32Array(bodyCols),0.7,.95));
-      /* LED rim — glowing visor edge, breathes; crisp, dense */
-      const rimPts=[],rimCols=[];
-      const nR=Math.floor(1400*K)+340;
-      for(let i=0;i<nR;i++){
-        const a=Math.random()*Math.PI*2,c=Math.cos(a),s=Math.sin(a);
-        const X=w*sgn(c)*Math.pow(Math.abs(c),2/3),Y=1.6+h*sgn(s)*Math.pow(Math.abs(s),2/3);
-        rimPts.push(X+R(-.07,.07),Y+R(-.07,.07),visorZ(X)+R(-.15,.05));
-        t.copy(CYAN).multiplyScalar(R(1.1,1.7));
-        rimCols.push(t.r,t.g,t.b);
-      }
-      /* four corner tracking cameras — bright white dots */
-      const camPos=[[-w*.76,1.6+h*.6],[w*.76,1.6+h*.6],[-w*.76,1.6-h*.6],[w*.76,1.6-h*.6]];
-      for(const[cx2,cy2] of camPos)for(let i=0;i<Math.floor(40*K)+16;i++){
-        const a=R(0,Math.PI*2),r=Math.sqrt(Math.random())*.65;
-        rimPts.push(cx2+r*Math.cos(a),cy2+r*Math.sin(a),visorZ(cx2)+.3);
-        t.copy(WHITE).multiplyScalar(R(1,1.6));
-        rimCols.push(t.r,t.g,t.b);
-      }
-      /* small yellow logo strip, center front */
-      for(let i=0;i<Math.floor(50*K)+18;i++){
-        rimPts.push(R(-2,2),1.6+R(-.15,.15),visorZ(0)+.3);
-        t.copy(YELL).multiplyScalar(R(.8,1.3));
-        rimCols.push(t.r,t.g,t.b);
-      }
-      const rim=buildPoints(new Float32Array(rimPts),new Float32Array(rimCols),0.9,1);
-      grp.add(rim);
-      /* faceplate shimmer — data ghosting across the front panel */
-      const lensPts=[],lensCols=[];
-      const nL=Math.floor(450*K)+120;
-      for(let i=0;i<nL;i++){
-        let x,y;
-        do{x=R(-1,1);y=R(-1,1);}while(Math.pow(Math.abs(x),3)+Math.pow(Math.abs(y),3)>1);
-        const X=x*w*.92,Y=1.6+y*h*.88;
-        lensPts.push(X,Y,visorZ(X)+.25);
-        t.copy(VIOLET).lerp(CYAN,Math.random()).multiplyScalar(R(.5,1));
-        lensCols.push(t.r,t.g,t.b);
-      }
-      const lens=buildPoints(new Float32Array(lensPts),new Float32Array(lensCols),0.9,1);
-      grp.add(lens);
-      /* holographic UI panels — what the wearer is seeing, projected ahead */
-      (function(){
-        const hPts=[],hCols=[];
-        const panels=[[-5.2,2.4,16,.35],[4.8,.6,17.5,-.3]]; /* x,y,z,tilt */
-        for(const[px2,py2,pz2,tilt] of panels){
-          const pw=3.6,ph=2.3;
-          /* frame */
-          const nF2=Math.floor(140*K)+50;
-          for(let i=0;i<nF2;i++){
-            const side=(Math.random()*4)|0;
-            let lx=R(-pw,pw),ly=R(-ph,ph);
-            if(side===0)ly=ph;else if(side===1)ly=-ph;
-            else if(side===2)lx=pw;else lx=-pw;
-            hPts.push(px2+lx*Math.cos(tilt),py2+ly,pz2+lx*Math.sin(tilt));
-            t.copy(CYAN).multiplyScalar(R(.8,1.4));
-            hCols.push(t.r,t.g,t.b);
-          }
-          /* scan lines inside */
-          for(let r2=0;r2<3;r2++)for(let i=0;i<Math.floor(26*K)+10;i++){
-            const lx=R(-pw*.8,pw*.8),ly=-ph*.5+r2*ph*.5;
-            hPts.push(px2+lx*Math.cos(tilt),py2+ly,pz2+lx*Math.sin(tilt));
-            t.copy(CYAN).multiplyScalar(R(.3,.55));
-            hCols.push(t.r,t.g,t.b);
-          }
-          /* yellow status dot, top-right corner */
-          for(let i=0;i<Math.floor(16*K)+6;i++){
-            hPts.push(px2+(pw-.4)*Math.cos(tilt)+R(-.15,.15),py2+ph-.4+R(-.15,.15),
-                      pz2+(pw-.4)*Math.sin(tilt)+R(-.15,.15));
-            t.copy(YELL).multiplyScalar(R(.9,1.4));
-            hCols.push(t.r,t.g,t.b);
+      // The two eye lenses sit deep in the housing and stay visible through the scanned shell.
+      for(const cx of [-4.6,4.6]){
+        const lensZ=faceZ(cx,0)-HOUSING+.7;
+        for(let ring=0;ring<2;ring++){
+          const r=3.15*(1-ring/6.6),n=Math.round((mobile?32:50)*r/3.15)+6;
+          for(let i=0;i<n;i++){
+            const a=(i+.5*(ring%2))/n*Math.PI*2,x=cx+r*Math.cos(a),y=.15+r*Math.sin(a);
+            const glint=Math.exp(-((x-cx+1.1)**2+(y-1.3)**2)/1.4);
+            color.copy(CYAN).lerp(WHITE,.75*glint);
+            scan.dot(x,y,lensZ-.9*(1-(r/3.15)**2),color,ring===0?1.5:.34+.07*ring+.9*glint);
           }
         }
-        grp.add(buildPoints(new Float32Array(hPts),new Float32Array(hCols),.8,.95));
-      })();
-      /* orbiting tracking beacons */
-      const beaconPts=new Float32Array(3*3),beaconCols=new Float32Array(3*3);
-      for(let i=0;i<3;i++){t.copy(CYAN).multiplyScalar(1.5);
-        beaconCols[i*3]=t.r;beaconCols[i*3+1]=t.g;beaconCols[i*3+2]=t.b;}
-      const beacons=buildPoints(beaconPts,beaconCols,2.4,1);
-      grp.add(beacons);
-      grp.position.set(14*XF,-1,-145); /* third totem: right of the path */
-      grp.scale.setScalar(1.1);
-      add(grp,-145,170);
-      hmd={grp,rimMat:rim.material,lensMat:lens.material,
-        beaconAttr:beacons.geometry.attributes.position};
+        // What the wearer sees: a sun over a ridge, and a floor grid running to the horizon.
+        // The two lenses show it slightly shifted — a stereo pair.
+        const shift=cx<0?.14:-.14,horizon=-.2;
+        const view=(x,y,tint,power)=>{
+          if(x*x+y*y<2.55*2.55)scan.dot(cx+x+shift,.15+y,lensZ-.3,tint,power);
+        };
+        for(let x=-2.6;x<=2.6;x+=.16){
+          view(x,horizon,CYAN,1.15);
+          view(x,horizon+.22+.62*Math.abs(Math.sin(x*1.9+.6))*(1-.3*Math.abs(x)/2.6),PINK,.95);
+        }
+        for(let k=1;k<=5;k++){ /* floor lines, closing up toward the horizon */
+          const y=horizon-2.35*(k/5)**1.8;
+          for(let x=-2.6;x<=2.6;x+=.27)view(x,y,phosphorBlue,.42+.1*k);
+        }
+        for(let j=-4;j<=4;j++)for(let s=1;s<=7;s++) /* lines converging on the vanishing point */
+          view(j*.95*s/7,horizon-2.35*s/7,phosphorBlue,.34+.07*s);
+        for(let i=0;i<16;i++){ /* sun */
+          const a=i/16*Math.PI*2;
+          view(.95+.58*Math.cos(a),horizon+1.35+.58*Math.sin(a),YELL,1.35);
+        }
+        view(.95,horizon+1.35,WHITE,1.4);
+      }
+      // Halo strap with a wider cradle at the back of the head, plus the top strap.
+      const arc=mobile?77:116;
+      for(let i=0;i<=arc;i++){
+        const a=i/arc*Math.PI,cradle=Math.exp(-(((a-Math.PI/2)/.40)**2));
+        const half=3+Math.round(4*cradle);
+        for(let row=-half;row<=half;row++){
+          const light=Math.abs(row)===half?1.25:.36+.2*cradle;
+          scan.dot(10.25*Math.cos(a),.35+1.45*Math.sin(a)-.7*cradle+row*.29,3.4-17*Math.sin(a),phosphorPink,light);
+        }
+        for(let row=-3;row<=3;row++)
+          scan.dot(row*.33,2+7.5*Math.sin(a),-4.6+8.4*Math.cos(a),VIOLET,Math.abs(row)===3?1.2:.46);
+      }
+      hmd.add(scan.points(mobile ? .54 : .44,false));
+
+      const power=pulseCloud(2.8);
+      const supply=[];
+      for(let i=0;i<=20;i++){
+        const a=Math.PI*(.5+i/40);
+        supply.push(new THREE.Vector3(10.25*Math.cos(a),.35+1.45*Math.sin(a),3.4-17*Math.sin(a)));
+      }
+      const hingeTime=power.trace(new THREE.CatmullRomCurve3(supply),0,15,CYAN);
+      const onFace=(x,y)=>new THREE.Vector3(x,y,faceZ(x,y)+.10);
+      const socket=onFace(-8.8,1.8);
+      const feed=new THREE.CatmullRomCurve3([supply[20],new THREE.Vector3(-10.3,.45,4.7),socket]);
+      const socketTime=power.trace(feed,hingeTime,15,phosphorBlue);
+      power.node(socket,CYAN,socketTime);
+      // A single upper rail feeds three short drops to the optical modules.
+      const copper=new THREE.Color(0xffce64);
+      let tap=onFace(-7.7,2.75);
+      let tapTime=power.trace(new THREE.LineCurve3(socket,tap),socketTime,18,copper);
+      for(const cx of [-6,0,6]){
+        const nextTap=onFace(cx-1.25,2.75);
+        const rail=new THREE.QuadraticBezierCurve3(tap,onFace((tap.x+nextTap.x)/2,2.75),nextTap);
+        tapTime=power.trace(rail,tapTime,18,copper);
+        tap=nextTap;
+        const elbow=onFace(cx,1.45),sensor=onFace(cx,.45);
+        const cornerTime=power.trace(new THREE.LineCurve3(tap,elbow),tapTime,18,copper);
+        const sensorTime=power.trace(new THREE.LineCurve3(elbow,sensor),cornerTime,18,copper);
+        power.node(sensor,WHITE,sensorTime);
+      }
+      hmd.add(power.points());
+      hmd.rotation.set(.30,.57,-.10);
+      hmd.position.set(mobile?0:26*XF,mobile?15:1,-145);
+      hmd.scale.setScalar(mobile ? .8:1.32);
+      scrollSpecimen(hmd,-145,[-47,-83,-100,-128]);
     })();
 
     /* ---------- the chip : silicon totem (z ≈ -200) ---------- */
@@ -1471,7 +1795,7 @@ let three=null;
     let chipDieMat=null;
     (function(){
       const t=new THREE.Color();
-      const S=13,DIE=5,Z0=-215,X0=14*XF; /* fourth totem: RIGHT of the path */
+      const S=13,DIE=5,Z0=-215,X0=mobile?0:14*XF,parts=[]; /* fourth totem: RIGHT of the path */
       /* package — dark slab */
       const pts=[],cols=[];
       const nP=Math.floor(1100*K)+260;
@@ -1494,18 +1818,21 @@ let three=null;
           cols.push(t.r,t.g,t.b);
         }
       }
-      add(buildPoints(new Float32Array(pts),new Float32Array(cols),0.85,1),Z0,190);
+      parts.push(add(buildPoints(new Float32Array(pts),new Float32Array(cols),0.85,1),Z0,190));
       /* the die — bright pulsing core, its own material */
       const dPts=[],dCols=[];
       const nD=Math.floor(750*K)+200;
       for(let i=0;i<nD;i++){
-        dPts.push(X0+R(-DIE,DIE),R(-DIE,DIE),Z0+1+R(0,.5));
-        t.copy(CYAN).lerp(WHITE,Math.random()*.4).multiplyScalar(R(.9,1.6));
+        const column=i%32,row=Math.floor(i/32),rows=Math.ceil(nD/32);
+        const x=((column+.5)/32*2-1)*DIE,y=((row+.5)/rows*2-1)*DIE;
+        if(column%8===0 || row%7===0)continue;
+        dPts.push(X0+x,y,Z0+1.35);
+        t.copy(column<15?CYAN:VIOLET).lerp(WHITE,(row%7)*.045).multiplyScalar(.84);
         dCols.push(t.r,t.g,t.b);
       }
-      const die=buildPoints(new Float32Array(dPts),new Float32Array(dCols),1.0,1);
+      const die=buildPoints(new Float32Array(dPts),new Float32Array(dCols),.48,1);
       chipDieMat=die.material;
-      add(die,Z0,190);
+      parts.push(add(die,Z0,190));
       /* circuit traces — die to pins, manhattan style; pulses ride these */
       const ls=[],lc=[];
       for(let e=0;e<4;e++)for(let p2=0;p2<PINS;p2++){
@@ -1519,14 +1846,124 @@ let three=null;
         lc.push(0,.55,.47,0,.55,.47,0,.55,.47,0,.3,.26);
         chipTraces.push([a,m],[m,b2]);
       }
-      add(buildLines(new Float32Array(ls),new Float32Array(lc),0.65),Z0,190);
+      parts.push(add(dottedTraces(ls,lc,.67,.92),Z0,190));
+      if(mobile){ /* shrink about the chip's centre and lift it onto the stage above the text */
+        const k=.5,lift=19,moved=new Set();
+        for(const part of parts){part.scale.setScalar(k);part.position.set(X0*(1-k),lift,Z0*(1-k));}
+        for(const trace of chipTraces)for(const p of trace){
+          if(moved.has(p))continue;
+          moved.add(p);
+          p[0]=X0+(p[0]-X0)*k;p[1]=p[1]*k+lift;p[2]=Z0+(p[2]-Z0)*k;
+        }
+      }
+    })();
+
+    /* ---------- SHERPA : the ERP ridge, lit by attribution (z ≈ -230) ---------- */
+    let sherpa=null;
+    (function(){
+      const ridge=new THREE.Group(),color=new THREE.Color();
+      const channels=mobile?8:11,samples=mobile?110:170,W=30,D=20;
+      const bump=(t,mu,sd)=>Math.exp(-(((t-mu)/sd)**2));
+      const occipital=c=>bump(c,.62,.28),parietal=c=>bump(c,.30,.35);
+      // Stylised ERP (t in ms, channel c from front 0 to back 1), negative up as in the lab:
+      // a sharp N170 summit over the posterior channels and a broad late component.
+      const erp=(t,c)=>-1.1*bump(t,105+8*c,22)*(.5+.5*occipital(c))
+        +6.4*bump(t,172+10*(c-.5),27)*(.25+.75*occipital(c))
+        -1.6*bump(t,250,45)*(.4+.6*occipital(c))
+        +3.4*bump(t,430-40*c,105)*(.3+.7*parietal(c))
+        +.22*Math.sin(t*.045+c*9)+.14*Math.sin(t*.11+c*23);
+      // What the classifier leaned on: mostly the N170 window, a little of the late one.
+      const attribution=(t,c)=>Math.min(1,Math.sqrt(bump(t,172+10*(c-.5),38)*(.15+.85*occipital(c))
+        +.42*bump(t,430-40*c,115)*(.1+.9*parietal(c))));
+      const place=(t,c)=>[(t+200)/1000*W-W/2,erp(t,c),(.5-c)*D];
+      const positions=[],colors=[],weights=[];
+      function dot(x,y,z,power,weight){
+        positions.push(x,y,z);
+        colors.push(color.r*power,color.g*power,color.b*power);
+        weights.push(weight);
+      }
+      for(let k=0;k<channels;k++){
+        const c=k/(channels-1),near=1-.45*c;
+        for(let i=0;i<=samples;i++){
+          const t=-200+1000*i/samples,[x,y,z]=place(t,c),w=attribution(t,c);
+          color.copy(phosphorBlue).lerp(VIOLET,.25+.6*c);
+          dot(x,y,z,(.85+.09*Math.abs(y))*near,w);
+          // A falling curtain under each trace gives the peaks their mass.
+          if(i%2===0&&Math.abs(y)>.7)for(const f of [.72,.46,.22])dot(x,y*f,z,.42*f*near,w*.8*f);
+        }
+      }
+      // Time axis in front of the first channel: a tick every 100 ms, stimulus onset marked.
+      color.copy(CYAN);
+      for(let t=-200;t<=800;t+=100){
+        const x=(t+200)/1000*W-W/2,onset=t===0;
+        for(let s=0;s<(onset?9:3);s++)dot(x,-1.4+s*.42,D/2+1.6,onset?.95:.5,0);
+      }
+      const cloud=buildPoints(new Float32Array(positions),new Float32Array(colors),mobile ? .7 : .62,1);
+      cloud.geometry.setAttribute("weight",new THREE.Float32BufferAttribute(weights,1));
+      const compile=cloud.material.onBeforeCompile;
+      cloud.material.onBeforeCompile=shader=>{
+        compile(shader);
+        shader.uniforms.attributionClock=reduceMotion ? {value:0} : scanTime;
+        shader.vertexShader="attribute float weight; uniform float attributionClock;\n"+shader.vertexShader
+          .replace("#include <color_vertex>",`#include <color_vertex>
+            // A read-out sweeps the epoch; attributed samples flare as it passes and keep glowing.
+            float sweep=fract(attributionClock*.15)*1.6-.25;
+            float behind=sweep-(position.x/${W.toFixed(1)}+.5);
+            float flare=behind>0.0 ? exp(-behind*2.4) : 0.0;
+            vColor=vColor*(1.0-.94*weight)+vec3(1.0,.50,.11)*weight*(.95+1.5*flare)
+                  +vec3(.30,.46,.52)*exp(-behind*behind/.0007);`)
+          .replace("gl_PointSize = size;","gl_PointSize = size*(1.0+.9*weight);");
+      };
+      ridge.add(cloud);
+
+      // The sherpa: one light that climbs the most-attributed trace to the N170 summit.
+      const lead=Math.round(.62*(channels-1))/(channels-1),TRAIL=8;
+      const climber=new Float32Array(TRAIL*3),climberCols=new Float32Array(TRAIL*3);
+      for(let i=0;i<TRAIL;i++){
+        color.copy(WHITE).lerp(GOLD,i/TRAIL).multiplyScalar(1.5*(1-i/TRAIL)**1.4);
+        climberCols.set([color.r,color.g,color.b],i*3);
+      }
+      const guide=buildPoints(climber,climberCols,1.7,1);
+      ridge.add(guide);
+      const summitT=172+10*(lead-.5);
+      function climb(time){
+        const cycle=(time%7.5)/7.5,u=Math.min(1,cycle/.6),eased=u*u*(3-2*u);
+        for(let i=0;i<TRAIL;i++){
+          const t=-200+(summitT+200)*Math.max(0,eased-i*.014);
+          const p=place(t,lead);
+          climber.set([p[0],p[1]+.35,p[2]],i*3);
+        }
+        guide.geometry.attributes.position.needsUpdate=true;
+      }
+      climb(7.4); /* resting on the summit until the first frame */
+      sherpa={climb};
+
+      ridge.rotation.set(.22,.42,0);
+      ridge.position.set(mobile?0:-2*XF,mobile?2:-11,-230);
+      ridge.scale.setScalar(mobile ? .62 : 1.3);
+      scrollSpecimen(ridge,-230,[-128,-158,-200,-222]);
+
+      // The chip hands its verdict over: a feed line from its lower-left pins to the summit.
+      ridge.updateMatrixWorld(true);
+      const summit=new THREE.Vector3(...place(summitT,lead)).applyMatrix4(ridge.matrixWorld);
+      const source=mobile?new THREE.Vector3(-6.5,12.5,-215):new THREE.Vector3(14*XF-13,-8,-215);
+      const arch=source.clone().lerp(summit,.5).add(new THREE.Vector3(0,8,-3));
+      const feed=new THREE.QuadraticBezierCurve3(source,arch,summit).getPoints(14);
+      const ls=[],lc=[];
+      for(let i=0;i<14;i++){
+        const a=feed[i].toArray(),b=feed[i+1].toArray();
+        ls.push(...a,...b);
+        lc.push(.62,.40,.14,.62,.40,.14);
+        chipTraces.push([a,b],[a,b]);
+      }
+      add(dottedTraces(ls,lc,.6,.8),-225,190);
     })();
 
     /* ---------- the perceptron : playground totem (z ≈ -355) ---------- */
     const netEdges=[];
     (function(){
       const t=new THREE.Color();
-      const X0=-6*XF,Z0=-355; /* sixth totem: just left of the rail */
+      const X0=mobile?0:19*XF,Y0=mobile?15:6,Z0=-355; /* sixth totem: upper right, beside the headline */
       const layers=[4,6,6,3],LW=9;     /* node counts; horizontal spread */
       const nodes=[];
       layers.forEach((n,li)=>{
@@ -1534,102 +1971,129 @@ let three=null;
         const x=X0+(li/(layers.length-1)-.5)*2*LW;
         for(let i=0;i<n;i++){
           const y=(i/(n-1||1)-.5)*((n-1)*4.2);
-          col.push([x,y,Z0+R(-.6,.6)]);
+          col.push([x,y+Y0,Z0+R(-.6,.6)]);
         }
         nodes.push(col);
       });
-      /* nodes — glowing spheres, input violet → output yellow */
+      /* nodes — crisp shells with a bright core, input violet → output yellow */
       const pts=[],cols=[];
       nodes.forEach((col,li)=>{
         const mix=li/(nodes.length-1);
         col.forEach(p=>{
-          const nN=Math.floor(60*K)+24;
+          const nN=Math.floor(54*K)+22,r=1.2;
           for(let i=0;i<nN;i++){
-            const th=Math.acos(2*Math.random()-1),f=R(0,Math.PI*2),r=1.5*Math.cbrt(Math.random());
-            pts.push(p[0]+r*Math.sin(th)*Math.cos(f),p[1]+r*Math.cos(th),p[2]+r*Math.sin(th)*Math.sin(f));
-            t.copy(VIOLET).lerp(CYAN,mix).lerp(YELL,mix===1?.55:0).multiplyScalar(R(.8,1.5));
+            const ny=1-2*(i+.5)/nN,ring=Math.sqrt(1-ny*ny),a=i*2.39996;
+            pts.push(p[0]+r*ring*Math.cos(a),p[1]+r*ny,p[2]+r*ring*Math.sin(a));
+            t.copy(VIOLET).lerp(CYAN,mix).lerp(YELL,mix===1?.55:0)
+              .multiplyScalar(.3+.75*(1+ring*Math.sin(a))/2+.35*ring);
+            cols.push(t.r,t.g,t.b);
+          }
+          for(let i=0;i<5;i++){ /* core */
+            pts.push(p[0]+R(-.22,.22),p[1]+R(-.22,.22),p[2]+R(-.22,.22));
+            t.copy(WHITE).lerp(mix===1?YELL:CYAN,.35).multiplyScalar(1.3);
             cols.push(t.r,t.g,t.b);
           }
         });
       });
-      add(buildPoints(new Float32Array(pts),new Float32Array(cols),1.0,1),Z0,170);
+      add(buildPoints(new Float32Array(pts),new Float32Array(cols),.62,1),Z0,170);
       /* weights — every node to every node of the next layer */
       const ls=[],lc=[];
       for(let li=0;li<nodes.length-1;li++){
         for(const a of nodes[li])for(const b of nodes[li+1]){
           ls.push(...a,...b);
           const w2=Math.random(); /* weight strength = brightness */
-          lc.push(0,.5*w2+.1,.42*w2+.08,0,.5*w2+.1,.42*w2+.08);
+          /* strong weights glow cyan, weak ones fall back to a dim violet */
+          if(w2>.45)lc.push(0,.5*w2+.1,.42*w2+.08,0,.5*w2+.1,.42*w2+.08);
+          else lc.push(.2*w2+.07,.12*w2+.05,.42*w2+.12,.2*w2+.07,.12*w2+.05,.42*w2+.12);
           if(w2>.45)netEdges.push([a,b]); /* strong weights carry signals */
         }
       }
-      add(buildLines(new Float32Array(ls),new Float32Array(lc),0.5),Z0,170);
+      add(dottedTraces(ls,lc,.67,.78),Z0,170);
     })();
 
-    /* ---------- the split brain : bridge totem (z ≈ -405) ---------- */
+    /* ---------- the hybrid cortex : bridge totem (z ≈ -405) ---------- */
     const seamEdges=[];
+    let seam=null;
     (function(){
-      const t=new THREE.Color();
-      const pts=[],cols=[];
-      const RX=15,RY=11,RZ=13,GAP=2.4,Z0=-405,X0=-13*XF; /* seventh totem: left */
-      /* left hemisphere — organic gyri strokes */
-      const STR=Math.floor(110*K)+36;
-      for(let k=0;k<STR;k++){
-        let th=Math.acos(2*Math.random()-1),f=R(Math.PI*.52,Math.PI*1.48);
-        let dth=R(-.07,.07),df=R(-.1,.1);
-        const steps=20+(Math.random()*16|0);
-        t.copy(VIOLET).lerp(PINK,Math.random()*.6).multiplyScalar(R(.9,1.5));
-        for(let s=0;s<steps;s++){
-          th+=dth+R(-.015,.015);f+=df+R(-.02,.02);
-          th=Math.max(.2,Math.min(Math.PI-.2,th));
-          f=Math.min(Math.PI*1.48,Math.max(Math.PI*.52,f));
-          const fold=1+Math.sin(th*7)*Math.sin(f*6)*.07;
-          pts.push(X0+RX*Math.sin(th)*Math.cos(f)*fold-GAP,
-                   RY*Math.cos(th)*fold,Z0+RZ*Math.sin(th)*Math.sin(f)*fold);
-          cols.push(t.r,t.g,t.b);
+      const hybrid=new THREE.Group(),color=new THREE.Color(),GAP=1.7,Z0=-405;
+      // Left hemisphere — grown: the same folded cortex as the cerebrum.
+      const flesh=scanCloud();
+      cortex.scanHemisphere(-1,mobile?34:54,.78,(x,y,z,latitude,sulcus,rim,crown)=>{
+        color.copy(VIOLET).lerp(PINK,.25+.5*(1-sulcus)).lerp(phosphorPink,.22*rim);
+        flesh.dot(x,y,z-GAP,color,
+          (.5+.5*Math.sin(latitude)+.2*y/12)*(.2+.95*(1-sulcus)+.6*rim)*(1-.4*crown));
+      });
+      hybrid.add(flesh.points(mobile ? .62 : .52,false));
+
+      // Right hemisphere — engineered: the same anatomy as contour rings and meridians,
+      // soldered at every crossing, with a few live circuits picked out in yellow.
+      const RINGS=mobile?6:8,SPOKES=mobile?22:30,ls=[],lc=[],solder=scanCloud();
+      const at=(u,latitude)=>{const p=cortex.surface(u,latitude);p[2]+=GAP;return p;};
+      const ringLatitude=j=>Math.PI/2*(.04+.80*j/(RINGS-1));
+      function wire(a,b,live){
+        ls.push(...a,...b);
+        const c=live?[.95,.80,.16]:[.17,.60,.54];
+        lc.push(...c,...c);
+      }
+      color.copy(WHITE).lerp(CYAN,.4);
+      for(let j=0;j<RINGS;j++)for(let k=0;k<SPOKES;k++){
+        const latitude=ringLatitude(j),u=k/SPOKES;
+        const along=cortex.rnd()<.14,across=cortex.rnd()<.14;
+        for(let s=0;s<4;s++)wire(at(u+s/4/SPOKES,latitude),at(u+(s+1)/4/SPOKES,latitude),along);
+        if(j<RINGS-1){
+          const next=ringLatitude(j+1);
+          for(let s=0;s<3;s++)
+            wire(at(u,latitude+(next-latitude)*s/3),at(u,latitude+(next-latitude)*(s+1)/3),across);
         }
+        solder.dot(...at(u,latitude),color,1.5);
       }
-      /* right hemisphere — engineered: a wireframe schematic of a brain */
-      const LATS=7,MERS=9;
-      /* latitude rings */
-      for(let j=1;j<LATS;j++){
-        const th=j/LATS*Math.PI;
-        const nL=Math.floor(70*K)+26;
-        for(let i=0;i<nL;i++){
-          const f=R(-Math.PI*.48,Math.PI*.48);
-          pts.push(X0+RX*Math.sin(th)*Math.cos(f)+GAP,
-                   RY*Math.cos(th),Z0+RZ*Math.sin(th)*Math.sin(f));
-          t.copy(CYAN).multiplyScalar(R(.7,1.2));
-          cols.push(t.r,t.g,t.b);
+      hybrid.add(dottedTraces(ls,lc,mobile ? .66 : .58,.95));
+      // The seam — where thoughts cross between flesh and silicon. Each bridge leaves the cortex as a
+      // soft arc and arrives as a right-angled trace; a signal changes character at the midline.
+      const bridges=[],bl=[],bc=[],count=mobile?12:20,rosy=[.78,.42,.74],amber=[.95,.80,.16];
+      for(let i=0;i<count;i++){
+        const p=at(.03+.46*(i+.5)/count,.05+.22*cortex.rnd());
+        const grown=new THREE.Vector3(p[0],p[1],-p[2]),built=new THREE.Vector3(...p);
+        const mid=new THREE.Vector3(p[0],p[1]+1.2+.9*cortex.rnd(),0);
+        const sway=new THREE.Vector3(p[0]+1.6*(cortex.rnd()-.5),mid.y+1,-p[2]*.55);
+        const path=new THREE.QuadraticBezierCurve3(grown,sway,mid).getPoints(8);
+        const turn=path.length-1,corner=new THREE.Vector3(built.x,mid.y,built.z);
+        for(let k=1;k<=4;k++)path.push(mid.clone().lerp(corner,k/4));
+        for(let k=1;k<=4;k++)path.push(corner.clone().lerp(built,k/4));
+        for(let k=1;k<path.length;k++){
+          bl.push(...path[k-1].toArray(),...path[k].toArray());
+          const c=k<=turn?rosy:amber;
+          bc.push(...c,...c);
         }
+        solder.dot(mid.x,mid.y,mid.z,WHITE,1.7); /* the converter on the midline */
+        bridges.push({path,turn});
       }
-      /* meridian arcs */
-      for(let j=0;j<=MERS;j++){
-        const f=-Math.PI*.48+(j/MERS)*Math.PI*.96;
-        const nM=Math.floor(56*K)+20;
-        for(let i=0;i<nM;i++){
-          const th=R(.12,Math.PI-.12);
-          pts.push(X0+RX*Math.sin(th)*Math.cos(f)+GAP,
-                   RY*Math.cos(th),Z0+RZ*Math.sin(th)*Math.sin(f));
-          t.copy(CYAN).multiplyScalar(R(.7,1.2));
-          cols.push(t.r,t.g,t.b);
-        }
-      }
-      /* bright nodes at the grid intersections — solder points */
-      for(let j=1;j<LATS;j++)for(let k2=0;k2<=MERS;k2++){
-        const th=j/LATS*Math.PI,f=-Math.PI*.48+(k2/MERS)*Math.PI*.96;
-        pts.push(X0+RX*Math.sin(th)*Math.cos(f)+GAP,
-                 RY*Math.cos(th),Z0+RZ*Math.sin(th)*Math.sin(f));
-        t.copy(WHITE).lerp(CYAN,.4).multiplyScalar(1.5);
-        cols.push(t.r,t.g,t.b);
-      }
-      add(buildPoints(new Float32Array(pts),new Float32Array(cols),0.9,1),Z0,190);
-      /* the seam — where thoughts cross between flesh and silicon */
-      for(let i=0;i<Math.floor(42*K)+14;i++){
-        const th=R(.45,Math.PI-.45),zf=R(-.7,.7);
-        const Y=RY*Math.cos(th)*.85,Z=Z0+RZ*Math.sin(th)*zf;
-        seamEdges.push([[X0-GAP-2.5,Y,Z],[X0+GAP+2.5,Y,Z]]);
-      }
+      hybrid.add(dottedTraces(bl,bc,mobile ? .6 : .52,.8));
+      hybrid.add(solder.points(mobile ? 1.0 : .92));
+      const signals=bridges.map((bridge,i)=>({...bridge,t:cortex.rnd(),speed:.14+.12*cortex.rnd(),back:i%3===2}));
+      const signalAt=new Float32Array(signals.length*3),signalTint=new Float32Array(signals.length*3);
+      const signalCloud=buildPoints(signalAt,signalTint,2.1,1);
+      hybrid.add(signalCloud);
+      const spot=new THREE.Vector3();
+      seam={cross(dt){
+        signals.forEach((sig,i)=>{
+          sig.t=(sig.t+sig.speed*dt)%1;
+          const f=(sig.back?1-sig.t:sig.t)*(sig.path.length-1),k=Math.min(sig.path.length-2,Math.floor(f));
+          spot.copy(sig.path[k]).lerp(sig.path[k+1],f-k);
+          signalAt.set([spot.x,spot.y,spot.z],i*3);
+          const c=f<=sig.turn?PINK:YELL; /* organic on one side, a switching signal on the other */
+          signalTint.set([c.r*1.3,c.g*1.3,c.b*1.3],i*3);
+        });
+        signalCloud.geometry.attributes.position.needsUpdate=true;
+        signalCloud.geometry.attributes.color.needsUpdate=true;
+      }};
+      seam.cross(0);
+
+      // Seen from the front and a little above, so the two halves sit side by side.
+      hybrid.rotation.set(.42,Math.PI/2+.34,0);
+      hybrid.position.set(mobile?0:12*XF,mobile?13:-2,Z0); /* seventh totem: right, clear of the text */
+      hybrid.scale.setScalar(mobile ? .62 : 1.12);
+      add(hybrid,Z0,190);
     })();
 
     /* ---------- pulses : thoughts travelling the wires ---------- */
@@ -1639,7 +2103,7 @@ let three=null;
       /* action potentials racing along the neuron's dendrites */
       for(let i=0;i<Math.floor(46*K)+14;i++){
         const e=neuronSegs[(Math.random()*neuronSegs.length)|0];
-        if(e)all.push({a:e[0],b:e[1],t:Math.random(),sp:R(.012,.03),c:WHITE});
+        if(e)all.push({a:e[0],b:e[1],t:Math.random(),sp:R(.012,.03),c:WHITE,neuron:true});
       }
       /* signals running the chip's circuit traces */
       for(let i=0;i<Math.floor(55*K)+18;i++){
@@ -1668,13 +2132,14 @@ let three=null;
     /* ---------- EEG signal ocean (z -238 … -332) ---------- */
     let wave=null;
     (function(){
-      const gw=mobile?42:64,gd=mobile?16:24,n=gw*gd; /* one clean signal ocean below */
+      const gw=mobile?60:100,gd=mobile?18:32,n=gw*gd;
       const pos=new Float32Array(n*3),col=new Float32Array(n*3),base=[],t=new THREE.Color();
       let i=0;
       for(let a=0;a<gw;a++)for(let b=0;b<gd;b++){
-        const x=(a/(gw-1)-.5)*120,z=-238-(b/(gd-1))*94,y0=-15;
+        const x=(a/(gw-1)-.5)*120,z=-238-(b/(gd-1))*94;
+        const y0=-15;
         base.push(x,z,y0);
-        pos[i*3]=x;pos[i*3+1]=y0;pos[i*3+2]=z;
+        pos[i*3]=x;pos[i*3+1]=y0+2.6*Math.sin(x*.18)+2.1*Math.cos(z*.16);pos[i*3+2]=z;
         t.copy(VIOLET).lerp(CYAN,(x+60)/120).multiplyScalar(R(.8,1.3));
         col[i*3]=t.r;col[i*3+1]=t.g;col[i*3+2]=t.b;
         i++;
@@ -1684,88 +2149,100 @@ let three=null;
       wave={attr:obj.geometry.attributes.position,base,n};
     })();
 
-    /* ---------- DNA helix : the human code (z -450 … -530) ---------- */
+    /* Paired backbones and individually coloured base pairs, viewed side-on. */
     let helixObj=null;
     (function(){
-      const grp=new THREE.Group();
-      const n=Math.floor(1200*K)+300;
-      const pos=new Float32Array(n*3),col=new Float32Array(n*3),t=new THREE.Color();
-      for(let i=0;i<n;i++){
-        const u=i/n,ang=u*Math.PI*9,z=-450-u*80;
-        if(i%6===5){ /* base-pair rungs */
-          const k=Math.random()*2-1;
-          pos[i*3]=10.5*Math.cos(ang)*k;pos[i*3+1]=10.5*Math.sin(ang)*k;pos[i*3+2]=z;
-          t.copy(WHITE).multiplyScalar(.8);
-        }else{
-          const strand=i%2,ph=strand?Math.PI:0;
-          pos[i*3]=10.5*Math.cos(ang+ph)+R(-.3,.3);
-          pos[i*3+1]=10.5*Math.sin(ang+ph)+R(-.3,.3);
-          pos[i*3+2]=z;
-          t.copy(strand?GOLD:VIOLET).multiplyScalar(R(1,1.5));
-        }
-        col[i*3]=t.r;col[i*3+1]=t.g;col[i*3+2]=t.b;
-      }
-      grp.add(buildPoints(pos,col,1.5,1));
-      /* continuous strand backbones */
-      const STEPS=240,ls=[],lc=[];
-      for(let strand=0;strand<2;strand++){
-        const ph=strand?Math.PI:0,c=strand?GOLD:VIOLET;
-        let prev=null;
-        for(let s=0;s<=STEPS;s++){
-          const u=s/STEPS,ang=u*Math.PI*9,z=-450-u*80;
-          const p=[10.5*Math.cos(ang+ph),10.5*Math.sin(ang+ph),z];
-          if(prev){ls.push(...prev,...p);lc.push(c.r*.55,c.g*.55,c.b*.55,c.r*.55,c.g*.55,c.b*.55);}
-          prev=p;
+      const helix=new THREE.Group(),rungs=[],colors=[];
+      const strandPoint=(u,phase)=>{
+        const angle=u*Math.PI*4.8+phase;
+        return new THREE.Vector3(4.5*Math.cos(angle),32*(u-.5),4.5*Math.sin(angle));
+      };
+      const strands=scanCloud(),samples=mobile?185:270;
+      for(const [phase,color] of [[0,phosphorPink],[Math.PI,phosphorBlue]]){
+        for(let i=0;i<=samples;i++){
+          const p=strandPoint(i/samples,phase);
+          strands.dot(p.x,p.y,p.z,color,1.12+p.z*.065);
         }
       }
-      grp.add(buildLines(new Float32Array(ls),new Float32Array(lc),0.65));
-      grp.position.set(14*XF,0,0); /* seventh totem: right of the path */
-      helixObj=add(grp,-490,210);
+      helix.add(strands.points(.86));
+      for(let i=0;i<=36;i++){
+        const a=strandPoint(i/36,0),b=strandPoint(i/36,Math.PI);
+        for(const [end,other,color] of [[a,b,phosphorPink],[b,a,phosphorBlue]]){
+          rungs.push(...end.toArray(),...end.clone().lerp(other,.48).toArray());
+          colors.push(color.r,color.g,color.b,color.r*.45,color.g*.45,color.b*.45);
+        }
+      }
+      helix.add(dottedTraces(rungs,colors,.64,.92));
+      helix.position.set(mobile?0:14*XF,mobile?14:0,-490);
+      if(mobile)helix.scale.setScalar(.6);
+      helix.rotation.set(.24,.32,-.37);
+      helixObj=add(helix,-490,210);
     })();
 
     /* ---------- echo galaxy : fly through the disk (z ≈ -570) ---------- */
     let galaxyObj=null;
     (function(){
-      const n=Math.floor(1400*K)+300,arms=3;
-      const pos=new Float32Array(n*3),col=new Float32Array(n*3),t=new THREE.Color();
-      for(let i=0;i<n;i++){
-        if(i%7===6){ /* bright core rim around the hole you fly through */
-          const a=Math.random()*Math.PI*2,rr=6+R(-.6,.6);
-          pos[i*3]=rr*Math.cos(a);pos[i*3+1]=rr*Math.sin(a);pos[i*3+2]=-570+R(-.8,.8);
-          t.copy(WHITE).lerp(CYAN,Math.random()*.5).multiplyScalar(R(1,1.6));
-        }else{
-          const arm=i%arms,rr=6+Math.pow(Math.random(),.7)*30;
-          const ang=rr*.26+arm*(Math.PI*2/arms)+R(-.14,.14);
-          pos[i*3]=rr*Math.cos(ang);pos[i*3+1]=rr*Math.sin(ang);
-          pos[i*3+2]=-570+R(-2.5,2.5)*(1-rr/38);
-          t.copy(VIOLET).lerp(CYAN,Math.random()).multiplyScalar(R(.7,1.3));
-        }
-        col[i*3]=t.r;col[i*3+1]=t.g;col[i*3+2]=t.b;
+      const pts=[],cols=[],t=new THREE.Color(),warm=new THREE.Color(0xffd9a0);
+      const dot=(r,a,z,c,power)=>{pts.push(r*Math.cos(a),r*Math.sin(a),z);cols.push(c.r*power,c.g*power,c.b*power);};
+      const gauss=()=>(Math.random()+Math.random()+Math.random()-1.5)/1.5;
+      // Two logarithmic arms, tight at the core and fraying outward, with a fainter pair between them.
+      const stars=Math.floor(3400*K)+700;
+      for(let i=0;i<stars;i++){
+        const arm=i%4,minor=arm>1,rr=6.5+Math.pow(Math.random(),.62)*31;
+        const winding=Math.log(rr/6.5)*2.35+arm*Math.PI/2+(minor?.25:0);
+        const spread=(minor?.15:.07)+.008*rr;
+        t.copy(warm).lerp(CYAN,Math.min(1,(rr-6.5)/14)).lerp(VIOLET,Math.max(0,(rr-20)/18));
+        dot(rr,winding+gauss()*spread,gauss()*2.2*(1-rr/42),t,(minor?.5:1.25)*R(.6,1.4));
       }
-      galaxyObj=add(buildPoints(pos,col,1.0,1),-570,230);
+      // Bright rim around the hole you fly through.
+      for(let i=0;i<Math.floor(360*K)+120;i++){
+        t.copy(WHITE).lerp(warm,Math.random()*.7);
+        dot(6+gauss()*.5,Math.random()*Math.PI*2,gauss()*.7,t,R(1,1.6));
+      }
+      // Echoes: evenly dotted rings rippling out from the core, fainter with distance.
+      [13,20.5,28.5,36.5].forEach((radius,k)=>{
+        const n=Math.round(radius*(mobile?5:8));
+        for(let i=0;i<n;i++)dot(radius,i/n*Math.PI*2,0,CYAN,.95-.15*k);
+      });
+      const disk=buildPoints(new Float32Array(pts),new Float32Array(cols),.8,1);
+      galaxyObj=new THREE.Group();
+      galaxyObj.add(disk);
+      galaxyObj.position.z=-570;
+      galaxyObj.rotation.set(.52,-.18,-.22);
+      add(galaxyObj,-570,230);
     })();
 
-    /* ---------- exit portal (z -660) ---------- */
+    /* ---------- exit portal : an aperture and the tunnel behind it (z -660) ---------- */
     let portalObj=null;
     (function(){
-      const n=Math.floor(1100*K)+300;
-      const pos=new Float32Array(n*3),col=new Float32Array(n*3),t=new THREE.Color();
-      for(let i=0;i<n;i++){
-        const a=Math.random()*Math.PI*2;
-        const ring=i%4===3?19.5:15; /* double ring */
-        const r=ring+R(-.8,.8);
-        pos[i*3]=r*Math.cos(a);pos[i*3+1]=r*Math.sin(a);pos[i*3+2]=-660+R(-1.2,1.2);
-        t.copy(VIOLET).lerp(CYAN,(Math.sin(a)+1)/2).multiplyScalar(R(1,1.6));
-        col[i*3]=t.r;col[i*3+1]=t.g;col[i*3+2]=t.b;
+      const pts=[],cols=[],t=new THREE.Color(),Z=-660;
+      const dot=(r,a,z,power)=>{
+        t.copy(VIOLET).lerp(CYAN,(Math.sin(a)+1)/2);
+        pts.push(r*Math.cos(a),r*Math.sin(a),z);cols.push(t.r*power,t.g*power,t.b*power);
+      };
+      // Three crisp rings…
+      for(const [radius,power] of [[15,1.5],[17.2,.7],[19.5,1.2]]){
+        const n=Math.round(radius*(mobile?5:9));
+        for(let i=0;i<n;i++)dot(radius,i/n*Math.PI*2,Z,power);
       }
-      portalObj=add(buildPoints(pos,col,1.6,1),-660,280);
+      // …a graduated bezel, every fifth tick longer…
+      for(let i=0;i<72;i++){
+        const a=i/72*Math.PI*2,long=i%6===0;
+        for(let s=0;s<(long?6:3);s++)dot(21+s*.55,a,Z,long?1.25:.6);
+      }
+      // …and the tunnel: rings shrinking into the distance, twisting as they go.
+      for(let k=1;k<=(mobile?7:11);k++){
+        const radius=15*Math.pow(.86,k),n=Math.round(radius*(mobile?4:6));
+        for(let i=0;i<n;i++)dot(radius,i/n*Math.PI*2+k*.21,Z-k*4.2,1.1*Math.pow(.84,k));
+      }
+      portalObj=add(buildPoints(new Float32Array(pts),new Float32Array(cols),1.15,1),Z,280);
     })();
 
     /* ---------- the path : one luminous thread connecting every totem ---------- */
     let pathCurve=null,guideAttr=null,pathPulses=null;
     (function(){
-      const wp=[[0,-2,55],[5,-1,-15],[-5,0,-78],[5,-1,-145],[5,0,-215],
-                [0,-7,-285],[-5,1,-355],[-5,0,-405],[5,0,-490],[0,0,-570],[0,0,-662]]
+      const wp=[[0,-2,55],[5,-1,-15],[4,0,-78],[5,-1,-145],[5,0,-215],
+                [0,-7,-285],[4,2,-355],[3,0,-405],[5,0,-490],[0,0,-570],[0,0,-662]]
         .map(p=>new THREE.Vector3(p[0]*XF,p[1],p[2]));
       pathCurve=new THREE.CatmullRomCurve3(wp);
       const pts=pathCurve.getPoints(700);
@@ -1862,7 +2339,8 @@ let three=null;
       scene.add(buildPoints(new Float32Array(tips),new Float32Array(tipCols),1.5,1));
     })();
 
-    three={renderer,scene,camera,cull,pulses,wave,helixObj,galaxyObj,portalObj,hmd,
+    three={renderer,scene,camera,cull,pulses,wave,helixObj,galaxyObj,portalObj,hmd,brain,sherpa,seam,neuronMat,neuronBoost:0,ripple:null,scanTime,
+      dpr:Math.min(devicePixelRatio,2),frameAvg:16.7,dprAt:0,
       chipDieMat,pathCurve,guideAttr,pathPulses,
       mouse:{x:0,y:0},camZ:startZ,time:0,fov:62};
 
@@ -1928,6 +2406,7 @@ const damp=(value,target,rate,dt)=>value+(target-value)*(1-Math.exp(-rate*dt));
 document.addEventListener("visibilitychange",()=>{lastFrame=performance.now();});
 
 function frame(now){
+  const frameMs=now-lastFrame;
   const dt=Math.min(.05,Math.max(.001,(now-lastFrame)/1000));
   lastFrame=now;
   /* battery saver: don't render the 3D scene while the boot loader covers it */
@@ -1950,7 +2429,8 @@ function frame(now){
     for(const s of sections){
       const r=s.getBoundingClientRect();
       if(r.bottom<-200||r.top>innerHeight+200)continue;
-      const c=r.top+r.height/2;
+      // Keep the expanded team readable while any part of its section is in view.
+      const c=s.id==="people" ? Math.max(r.top,Math.min(mid,r.bottom)) : r.top+r.height/2;
       const d=Math.min(1,Math.abs(c-mid)/(innerHeight*0.9));
       const scale=1-d*0.05;
       const ty=(c-mid)*-0.06;
@@ -1968,8 +2448,17 @@ function frame(now){
     const t=three;
     if(!reduceMotion)t.time+=dt;
 
+    /* adaptive resolution: when frames run long, draw fewer pixels instead of stuttering */
+    if(frameMs<250){ /* longer gaps are tab switches, not slow frames */
+      t.frameAvg+=(frameMs-t.frameAvg)*.05;
+      if(t.frameAvg>27&&t.dpr>1&&now-t.dprAt>1500){
+        t.dpr=Math.max(1,t.dpr-.25);t.renderer.setPixelRatio(t.dpr);
+        t.dprAt=now;t.frameAvg=16.7;
+      }
+    }
+
     /* camera rides the scroll, with inertia; held back until the boot finishes */
-    const targetZ=Z_START-TRAVEL*p;
+    const targetZ=depthAtScroll(scrollY);
     if(reduceMotion)t.camZ=targetZ;
     else if(window.introStart)t.camZ=damp(t.camZ,targetZ,3.4,dt);
     t.camera.position.z=t.camZ;
@@ -1995,8 +2484,12 @@ function frame(now){
     /* pulses travel their wires */
     if(!reduceMotion&&t.pulses){
       const arr=t.pulses.attr.array,L=t.pulses.list;
+      /* hovering a research line fires the neuron: its action potentials race, the cell swells */
+      t.neuronBoost=damp(t.neuronBoost,0,1.1,dt);
+      const firing=1+3.5*t.neuronBoost;
+      if(t.neuronMat)t.neuronMat.size=t.neuronMat.userData.size*(1+.3*t.neuronBoost);
       for(let i=0;i<L.length;i++){
-        const q=L[i];q.t+=q.sp*dt*60;if(q.t>1)q.t=0;
+        const q=L[i];q.t+=q.sp*dt*60*(q.neuron?firing:1);if(q.t>1)q.t=0;
         arr[i*3]  =q.a[0]+(q.b[0]-q.a[0])*q.t;
         arr[i*3+1]=q.a[1]+(q.b[1]-q.a[1])*q.t;
         arr[i*3+2]=q.a[2]+(q.b[2]-q.a[2])*q.t;
@@ -2008,40 +2501,37 @@ function frame(now){
     if(!reduceMotion&&t.wave&&Math.abs(t.camZ-(-285))<220){
       const a=t.wave.attr.array,b=t.wave.base;
       const energy=t.activeSection==="findings"?1:.48;
+      /* a study card drops a stone: one ring travels out from under it and fades */
+      const age=t.ripple?t.time-t.ripple.at:9;
       for(let i=0;i<t.wave.n;i++){
         const x=b[i*3],z=b[i*3+1],y0=b[i*3+2],m=y0>0?-1:1,ph=y0>0?1.7:0;
-        a[i*3+1]=y0+m*energy*(Math.sin(x*0.18+t.time*1.6+ph)*4.4
+        let lift=0;
+        if(age<5){
+          const ring=Math.hypot(x-t.ripple.x,z+252)-17*age;
+          lift=7.5*Math.exp(-ring*ring/42)*Math.exp(-age*.65);
+        }
+        a[i*3+1]=y0+m*(energy*(Math.sin(x*0.18+t.time*1.6+ph)*4.4
                       +Math.cos(z*0.16+t.time*1.1+ph)*3.6
-                      +Math.sin((x+z)*0.07+t.time*0.7)*2.6);
+                      +Math.sin((x+z)*0.07+t.time*0.7)*2.6)+lift);
       }
       t.wave.attr.needsUpdate=true;
     }
 
-    /* slow life in the deep layers */
-    /* the headset turns toward you, LEDs breathing, beacons orbiting */
-    if(!reduceMotion&&t.hmd){
-      /* hold a 3/4 view and sway around it — never flat-on */
-      const energy=t.activeSection==="vr"?1:.45;
-      t.hmd.grp.rotation.y=-.55+Math.sin(t.time*.5)*.3*energy;
-      t.hmd.grp.rotation.x=.06+Math.sin(t.time*.37+1)*.1*energy;
-      t.hmd.grp.position.y=-1+Math.sin(t.time*.8)*1.4*energy;
-      t.hmd.rimMat.opacity=.7+Math.sin(t.time*2.6)*.3;
-      t.hmd.lensMat.opacity=.55+Math.sin(t.time*3.4+1)*.4;
-      const ba=t.hmd.beaconAttr.array;
-      for(let i=0;i<3;i++){
-        const a=t.time*(.7+i*.23)+i*2.1;
-        ba[i*3]=24*Math.cos(a);
-        ba[i*3+1]=Math.sin(a*1.7)*9;
-        ba[i*3+2]=-4+20*Math.sin(a);
-      }
-      t.hmd.beaconAttr.needsUpdate=true;
+    if(!reduceMotion){
+      t.scanTime.value=t.time;
+      if(t.sherpa)t.sherpa.climb(t.time);
+      if(t.seam)t.seam.cross(dt);
+      t.brain.rotation.y=-.45+.22*Math.sin(t.time*.32);
+      t.brain.rotation.x=.22+.055*Math.sin(t.time*.23);
+      t.hmd.rotation.y=.57+.085*Math.sin(t.time*.45);
+      t.hmd.rotation.x=.30+.035*Math.sin(t.time*.36);
     }
     /* the chip's die pulses with computation */
     if(!reduceMotion&&t.chipDieMat){
       const energy=t.activeSection==="synthetic"?1:.45;
       t.chipDieMat.opacity=.72+Math.sin(t.time*3)*.28*energy;
     }
-    if(!reduceMotion&&t.helixObj)t.helixObj.rotation.z+=(t.activeSection==="people" ? .0035 : .0014)*dt*60;
+    if(!reduceMotion&&t.helixObj)t.helixObj.rotation.y+=dt*(t.activeSection==="people" ? .17 : .055);
     if(!reduceMotion&&t.galaxyObj)t.galaxyObj.rotation.z+=(t.activeSection==="media" ? .0018 : .00065)*dt*60;
     if(!reduceMotion&&t.portalObj){
       t.portalObj.rotation.z-=(t.activeSection==="contact" ? .004 : .0015)*dt*60;
@@ -2051,7 +2541,8 @@ function frame(now){
 
     /* the guide firefly stays a little ahead; pulses ride the thread */
     if(t.pathCurve){
-      const gp=t.pathCurve.getPoint(Math.min(.999,Math.max(0,p+.045)));
+      const journey=(Z_START-t.camZ)/TRAVEL;
+      const gp=t.pathCurve.getPoint(Math.min(.999,Math.max(0,journey+.045)));
       t.guideAttr.array[0]=gp.x;
       t.guideAttr.array[1]=gp.y+(reduceMotion?0:Math.sin(t.time*3)*.6);
       t.guideAttr.array[2]=gp.z;
@@ -2069,6 +2560,18 @@ function frame(now){
 
     /* deterministic scan-in: exhibits resolve instead of randomly flickering */
     for(const c of t.cull){
+      if(c.formation){
+        const {phase,stops:[start,formed,release,end]}=c.formation;
+        const goal=THREE.MathUtils.clamp((start-targetZ)/(start-formed),0,1)
+                  +THREE.MathUtils.clamp((release-targetZ)/(release-end),0,1);
+        // Ease toward the scroll position so the build-up never jumps with the wheel.
+        if(!c.formation.primed){c.formation.primed=true;phase.value=c.formation.entrance?.001:goal;}
+        else phase.value=Math.abs(goal-phase.value)<.0005?goal
+          :damp(phase.value,goal,c.formation.entrance?.75:1.6,dt);
+        if(c.formation.entrance&&phase.value>.97)c.formation.entrance=false;
+        c.obj.visible=phase.value>0&&phase.value<2;
+        continue;
+      }
       const distance=Math.abs(t.camZ-c.zc);
       if(c.noFx){c.obj.visible=distance<c.range;continue;}
       const edge=Math.max(0,Math.min(1,(c.range-distance)/42));
@@ -2097,6 +2600,22 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
+
+/* ================= cards talk to the totems ================= */
+if(!reduceMotion){
+  document.querySelectorAll("#lab .link-tile").forEach(el=>{
+    const fire=()=>{if(three)three.neuronBoost=1;};
+    el.addEventListener("pointerenter",fire);el.addEventListener("focus",fire);
+  });
+  document.querySelectorAll("#findings .card").forEach(el=>{
+    const drop=()=>{
+      if(!three)return;
+      const r=el.getBoundingClientRect();
+      three.ripple={x:((r.left+r.width/2)/innerWidth-.5)*84,at:three.time};
+    };
+    el.addEventListener("pointerenter",drop);el.addEventListener("focusin",drop);
+  });
+}
 
 /* ================= 3D tilt on hover ================= */
 if(!reduceMotion&&matchMedia("(pointer:fine)").matches){

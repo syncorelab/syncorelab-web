@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SHERPA — Where and When Did the Classifier Look?</title>
+<style>
+  html, body { margin: 0; background: #0a0a0a; color: #ddd;
+               font-family: -apple-system, "Segoe UI", sans-serif; }
+  #app { max-width: 980px; margin: 0 auto; padding: 16px 14px 40px; }
+  h1 { font-size: 20px; margin: 4px 0 2px; }
+  .sub { font-size: 13px; color: #888; margin-bottom: 12px; }
+  details { background: #161616; border: 1px solid #333; border-radius: 8px;
+            padding: 10px 14px; margin-bottom: 14px; font-size: 14px; line-height: 1.5; }
+  summary { cursor: pointer; color: #3ddc84; font-weight: 600; }
+  details p { color: #bbb; }
+  h2 { font-size: 14px; margin: 14px 0 6px; color: #aaa; }
+  .cols { display: flex; gap: 22px; flex-wrap: wrap; align-items: flex-start; }
+  .main { flex: 1 1 520px; min-width: 0; }
+  .side { flex: 0 1 250px; }
+  canvas { display: block; border: 1px solid #333; border-radius: 6px; background: #0f0f0f; }
+  #erp, #map { width: 100%; box-sizing: border-box; touch-action: pan-y; cursor: crosshair; }
+  #scalp { cursor: pointer; }
+  button { background: #2d2d2d; color: #ddd; border: 1px solid #444; border-radius: 6px;
+           padding: 6px 13px; font-size: 13px; cursor: pointer; }
+  button:hover { background: #3a3a3a; }
+  button.primary { background: #1e3a2a; border-color: #2e5a40; }
+  button.primary:hover { background: #28503a; }
+  #chips { display: flex; gap: 5px; flex-wrap: wrap; }
+  #chips button { padding: 4px 9px; font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
+  #chips button.sel { background: #1e3a2a; border-color: #3ddc84; color: #fff; }
+  .row { display: flex; align-items: center; gap: 8px 16px; margin: 8px 0; flex-wrap: wrap; }
+  .note { font-size: 12px; color: #777; }
+  label.opt { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #aaa; }
+  input[type=range] { width: 120px; }
+  .val { font-size: 13px; color: #aaa; min-width: 44px; font-variant-numeric: tabular-nums; }
+  #stats { font-size: 12.5px; color: #8fbf9f; font-family: ui-monospace, Menlo, monospace;
+           white-space: pre-wrap; line-height: 1.6; margin-top: 8px; }
+  .legend { font-size: 12px; color: #999; margin: 6px 0 0; }
+  .sw { display: inline-block; width: 14px; height: 3px; vertical-align: 3px; margin: 0 5px 0 0; }
+  .sw + .sw, .legend span.gap { margin-left: 12px; }
+  .ramp { display: inline-block; width: 110px; height: 9px; border-radius: 2px;
+          vertical-align: -1px; margin: 0 6px;
+          background: linear-gradient(90deg, #101016, #4a3abe 35%, #5fe3d0 70%, #fcee0a); }
+  #takeaway { margin-top: 18px; padding: 10px 14px; border-left: 3px solid #3ddc84;
+              background: #121814; font-size: 14px; line-height: 1.5; color: #cfd8d1; }
+</style>
+<link rel="stylesheet" href="experiment-shell.css">
+<link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+</head>
+<body class="experiment-page">
+<a class="experiment-skip" href="#app">Skip to experiment</a>
+<header class="experiment-shell">
+  <a class="shell-brand" href="../index.html?skipIntro=1"><strong>SYN·CO·RE</strong> LAB</a>
+  <span class="shell-context">AI Experiment · PSY3230</span>
+  <nav class="shell-nav" aria-label="Experiment navigation"><a href="../index.html?skipIntro=1#experiments">&larr; Back to website</a><a href="../index.html?skipIntro=1#contact">Contact</a></nav>
+</header>
+<div id="app" tabindex="-1">
+  <h1>SHERPA</h1>
+  <div class="sub">SHAP-value-based ERP Analysis, in miniature. A classifier learns to tell
+    "faces" from "objects" trials in simulated EEG — and then shows <i>when</i> and
+    <i>where</i> the signal drove its decision. Named for the Sherpa guides: a way through
+    the peaks and troughs of an ERP.</div>
+
+  <details>
+    <summary>What is happening here?</summary>
+    <p>Every trial is a short stretch of EEG after a picture appears: 10 electrodes,
+    −200 to 800 ms. The data are synthetic, so the truth is known. Both conditions share
+    the usual components (P1, N170, P3), but for faces the <b>N170</b> — a negative
+    deflection around 170 ms — is stronger at the posterior-lateral electrodes P7, P8,
+    PO7 and PO8, and there is a smaller, later positivity around 400 ms at Cz and Pz.
+    Everything else is noise, and a single trial is mostly noise.</p>
+    <p>A logistic regression is trained on 280 trials to predict the condition from all
+    510 values (electrode × time), then tested on 120 trials it has never seen. The
+    heatmap is the <b>attribution map</b>: how much each electrode at each moment moved
+    the model's decisions, averaged over the held-out trials. For a linear model the
+    SHAP value of a feature is exactly weight × (value − average value), so nothing
+    here is approximated. This page is a linear miniature of the idea, not the
+    published pipeline.</p>
+    <p>Things to try: turn the effect size to zero — accuracy falls to chance and the
+    map dissolves into speckle. Raise the noise and watch both degrade together. Tick
+    "show planted difference" to check the map against the ground truth, which real
+    data never give you. And a caveat that carries over to real data: the map shows
+    what <i>this model</i> used, which is evidence about the brain only as far as the
+    model is good.</p>
+  </details>
+
+  <div class="row">
+    <button id="newData" class="primary">New data</button>
+    <label class="opt">effect size
+      <input type="range" id="eff" min="0" max="2" step="0.1" value="1">
+      <span class="val" id="effVal"></span></label>
+    <label class="opt">noise
+      <input type="range" id="noise" min="1" max="10" step="0.5" value="2.5">
+      <span class="val" id="noiseVal"></span></label>
+  </div>
+  <div class="row">
+    <span class="note">electrode:</span><span id="chips"></span>
+  </div>
+
+  <div class="cols">
+    <div class="main">
+      <h2>Grand-average ERP at <span id="elName"></span></h2>
+      <canvas id="erp"></canvas>
+      <div class="legend">
+        <span class="sw" style="background:#3ddc84"></span>faces
+        <span class="sw" style="background:#e08a55"></span>objects
+        <span class="gap">negative is plotted up</span>
+      </div>
+      <div class="row">
+        <label class="opt"><input type="checkbox" id="overlay" checked> attribution overlay on the ERP</label>
+        <label class="opt"><input type="checkbox" id="truth"> show planted difference</label>
+      </div>
+      <h2>Attribution map — mean |SHAP|, electrode × time</h2>
+      <canvas id="map"></canvas>
+      <div class="legend">low<span class="ramp"></span>high (relative to the map's maximum)</div>
+      <div class="legend">Hover or drag to move the time cursor; click a row to pick an electrode.</div>
+    </div>
+    <div class="side">
+      <h2>Scalp at <span id="curT"></span> ms</h2>
+      <canvas id="scalp"></canvas>
+      <div class="legend">Seen from above, nose up. Colour = attribution at the cursor time.</div>
+      <div id="stats"></div>
+    </div>
+  </div>
+
+  <div id="takeaway">Predicting the condition is the easy part. The map is the point: it
+    lights up around 170 ms over the posterior-lateral electrodes because that is where
+    the difference was planted — the classifier has become an instrument for reading
+    the data, not just a score.</div>
+</div>
+
+<script>
+"use strict";
+
+// --- core: simulation, classifier, attribution ---
+const ELEC = [
+  { n: "Fz",  x: 0,    y: 0.5 },   { n: "Cz",  x: 0,    y: 0 },
+  { n: "Pz",  x: 0,    y: -0.45 }, { n: "P7",  x: -0.82, y: -0.5 },
+  { n: "P8",  x: 0.82, y: -0.5 },  { n: "PO7", x: -0.6, y: -0.76 },
+  { n: "PO8", x: 0.6,  y: -0.76 }, { n: "O1",  x: -0.31, y: -0.92 },
+  { n: "Oz",  x: 0,    y: -0.98 }, { n: "O2",  x: 0.31, y: -0.92 },
+];
+const NE = ELEC.length, T0 = -200, T1 = 800, DT = 20;
+const NT = (T1 - T0) / DT + 1, NF = NE * NT;
+const N_TRIALS = 400, N_TRAIN = 280;
+const timeOf = k => T0 + k * DT;
+
+// Components: latency (ms), width (ms), amplitude (µV), weight per electrode.
+// "diff" components exist only in the faces condition and scale with effect size.
+const COMPONENTS = [
+  { mu: 100, sd: 18, amp:  3.0, topo: [0, 0, .2, .5, .5, .8, .8, 1, 1, 1] },                 // P1
+  { mu: 170, sd: 22, amp: -4.0, topo: [-.4, -.5, .1, .8, .9, .9, 1, .4, .3, .4] },            // N170
+  { mu: 320, sd: 80, amp:  4.0, topo: [.3, .8, 1, .4, .4, .3, .3, .2, .2, .2] },              // P3
+  { mu: 170, sd: 22, amp: -4.0, topo: [0, 0, 0, .8, 1, .8, 1, .25, 0, .25], diff: true },     // face N170
+  { mu: 400, sd: 70, amp:  2.0, topo: [.3, 1, 1, .2, .2, 0, 0, 0, 0, 0], diff: true },        // late
+];
+const ALPHA_TOPO = [0, .2, .6, .6, .6, .9, .9, 1, 1, 1];
+const bump = (t, mu, sd) => Math.exp(-((t - mu) * (t - mu)) / (2 * sd * sd));
+
+function template(diffOnly, effect) {
+  const out = new Float64Array(NF);
+  for (const c of COMPONENTS) {
+    if (!!c.diff !== diffOnly) continue;
+    for (let e = 0; e < NE; e++) for (let k = 0; k < NT; k++)
+      out[e * NT + k] += (c.diff ? effect : 1) * c.amp * c.topo[e] * bump(timeOf(k), c.mu, c.sd);
+  }
+  return out;
+}
+
+// Cells where a planted component exceeds 35% of its own peak.
+const TRUTH = (() => {
+  const m = new Uint8Array(NF);
+  for (const c of COMPONENTS) if (c.diff)
+    for (let e = 0; e < NE; e++) for (let k = 0; k < NT; k++)
+      if (c.topo[e] * bump(timeOf(k), c.mu, c.sd) > 0.35) m[e * NT + k] = 1;
+  return m;
+})();
+
+function makeRng(seed) {                       // mulberry32 + Box-Muller
+  let a = seed >>> 0;
+  const uni = () => {
+    a = (a + 0x6D2B79F5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  const gauss = () => Math.sqrt(-2 * Math.log(1 - uni())) * Math.cos(2 * Math.PI * uni());
+  return { uni, gauss };
+}
+
+function simulate(seed, effect, noise) {
+  const rng = makeRng(seed);
+  const shared = template(false, effect), extra = template(true, effect);
+  const X = new Float32Array(N_TRIALS * NF), y = new Uint8Array(N_TRIALS);
+  const RHO = 0.6, INNOV = Math.sqrt(1 - RHO * RHO);
+  const common = new Float64Array(NT);
+  for (let i = 0; i < N_TRIALS; i++) {
+    const face = i % 2;                        // 1 = faces, 0 = objects
+    y[i] = face;
+    const gain = 1 + 0.1 * rng.gauss();        // trial-to-trial amplitude jitter
+    const phase = 2 * Math.PI * rng.uni(), aAmp = 0.5 + 0.5 * rng.uni();
+    let c = rng.gauss();
+    for (let k = 0; k < NT; k++) { common[k] = c; c = RHO * c + INNOV * rng.gauss(); }
+    for (let e = 0; e < NE; e++) {
+      let own = rng.gauss();
+      for (let k = 0; k < NT; k++) {
+        const f = e * NT + k;
+        const alpha = aAmp * ALPHA_TOPO[e] * Math.sin(2 * Math.PI * 10 * timeOf(k) / 1000 + phase);
+        X[i * NF + f] = gain * (shared[f] + face * extra[f])
+                      + noise * (0.9 * own + 0.3 * common[k] + 0.4 * alpha);
+        own = RHO * own + INNOV * rng.gauss();
+      }
+    }
+  }
+  return { X, y };
+}
+
+function grandAverage(D, label) {
+  const avg = new Float64Array(NF);
+  let n = 0;
+  for (let i = 0; i < N_TRIALS; i++) {
+    if (D.y[i] !== label) continue;
+    n++;
+    for (let f = 0; f < NF; f++) avg[f] += D.X[i * NF + f];
+  }
+  for (let f = 0; f < NF; f++) avg[f] /= n;
+  return avg;
+}
+
+// Logistic regression on z-scored features, full-batch gradient descent with L2.
+function fit(D) {
+  const { X, y } = D;
+  const mean = new Float64Array(NF), sd = new Float64Array(NF);
+  for (let i = 0; i < N_TRAIN; i++) for (let f = 0; f < NF; f++) mean[f] += X[i * NF + f];
+  for (let f = 0; f < NF; f++) mean[f] /= N_TRAIN;
+  for (let i = 0; i < N_TRAIN; i++) for (let f = 0; f < NF; f++) {
+    const d = X[i * NF + f] - mean[f];
+    sd[f] += d * d;
+  }
+  for (let f = 0; f < NF; f++) sd[f] = Math.sqrt(sd[f] / N_TRAIN) || 1;
+  const Z = new Float32Array(N_TRIALS * NF);
+  for (let i = 0; i < N_TRIALS; i++) for (let f = 0; f < NF; f++)
+    Z[i * NF + f] = (X[i * NF + f] - mean[f]) / sd[f];
+
+  const w = new Float64Array(NF), g = new Float64Array(NF);
+  let b = 0;
+  const EPOCHS = 100, LR = 0.02, L2 = 1;
+  const score = i => {
+    let s = b;
+    const o = i * NF;
+    for (let f = 0; f < NF; f++) s += w[f] * Z[o + f];
+    return s;
+  };
+  for (let ep = 0; ep < EPOCHS; ep++) {
+    g.fill(0);
+    let gb = 0;
+    for (let i = 0; i < N_TRAIN; i++) {
+      const err = 1 / (1 + Math.exp(-score(i))) - y[i];
+      const o = i * NF;
+      for (let f = 0; f < NF; f++) g[f] += err * Z[o + f];
+      gb += err;
+    }
+    for (let f = 0; f < NF; f++) w[f] -= LR * (g[f] / N_TRAIN + L2 * w[f]);
+    b -= LR * gb / N_TRAIN;
+  }
+
+  // Held-out accuracy, and exact linear SHAP: phi = w * (z - mean z); mean z is 0 by construction.
+  const attr = new Float64Array(NF);
+  let correct = 0;
+  for (let i = N_TRAIN; i < N_TRIALS; i++) {
+    if ((score(i) > 0 ? 1 : 0) === y[i]) correct++;
+    for (let f = 0; f < NF; f++) attr[f] += Math.abs(w[f] * Z[i * NF + f]);
+  }
+  const nTest = N_TRIALS - N_TRAIN;
+  let max = 0, peak = 0, inside = 0, outside = 0, nIn = 0;
+  for (let f = 0; f < NF; f++) {
+    attr[f] /= nTest;
+    if (TRUTH[f]) { inside += attr[f]; nIn++; } else outside += attr[f];
+    if (attr[f] > max) { max = attr[f]; peak = f; }
+  }
+  const contrast = (inside / nIn) / (outside / (NF - nIn) || 1);    // planted cells vs the rest
+  return { attr, max: max || 1, peak, acc: correct / nTest, nTest, contrast };
+}
+// --- end core ---
+
+// --- State ---
+const $ = id => document.getElementById(id);
+const FACE = "#3ddc84", OBJ = "#e08a55", INK = "#aaa", GRID = "#262626";
+let seed = 7, sel = 6, cursorK = Math.round((170 - T0) / DT);
+let D, M, avgFace, avgObj, vLo, vHi, fitMs = 0;
+
+function rebuild() {
+  const t0 = performance.now();
+  D = simulate(seed, +$("eff").value, +$("noise").value);
+  M = fit(D);
+  fitMs = performance.now() - t0;
+  avgFace = grandAverage(D, 1);
+  avgObj = grandAverage(D, 0);
+  vLo = -2; vHi = 2;
+  for (let f = 0; f < NF; f++) {
+    vLo = Math.min(vLo, avgFace[f], avgObj[f]);
+    vHi = Math.max(vHi, avgFace[f], avgObj[f]);
+  }
+  vLo = Math.floor(vLo - 0.5); vHi = Math.ceil(vHi + 0.5);
+  drawAll();
+}
+
+// --- Canvas helpers ---
+const PAD = { l: 44, r: 12 };
+function prep(cv, h, w) {
+  const dpr = window.devicePixelRatio || 1;
+  if (w) cv.style.width = w + "px";
+  cv.style.height = h + "px";
+  const cw = cv.clientWidth;
+  cv.width = Math.round(cw * dpr);
+  cv.height = Math.round(h * dpr);
+  const c = cv.getContext("2d");
+  c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  c.clearRect(0, 0, cw, h);
+  c.font = "11px ui-monospace, Menlo, monospace";
+  return [c, cw];
+}
+const xOf = (k, w) => PAD.l + k / (NT - 1) * (w - PAD.l - PAD.r);
+function ramp(v) {
+  const stops = [[0, 16, 16, 22], [.35, 74, 58, 190], [.7, 95, 227, 208], [1, 252, 238, 10]];
+  v = Math.max(0, Math.min(1, v));
+  let i = 1;
+  while (stops[i][0] < v) i++;
+  const a = stops[i - 1], b = stops[i], u = (v - a[0]) / (b[0] - a[0]);
+  return `rgb(${[1, 2, 3].map(j => Math.round(a[j] + u * (b[j] - a[j]))).join(",")})`;
+}
+function timeAxis(c, w, yBase) {
+  c.fillStyle = INK; c.textAlign = "center"; c.textBaseline = "top";
+  for (let t = T0; t <= T1; t += 200) {
+    const x = xOf((t - T0) / DT, w);
+    c.fillRect(x - 0.5, yBase, 1, 4);
+    c.fillText(t + (t === T1 ? " ms" : ""), t === T1 ? x - 12 : x, yBase + 6);
+  }
+}
+function cursorLine(c, w, top, bottom) {
+  const x = xOf(cursorK, w);
+  c.strokeStyle = "rgba(255,255,255,.75)"; c.lineWidth = 1;
+  c.setLineDash([3, 3]);
+  c.beginPath(); c.moveTo(x, top); c.lineTo(x, bottom); c.stroke();
+  c.setLineDash([]);
+}
+
+// --- ERP plot ---
+function drawErp() {
+  const H = 230, top = 12, bottom = H - 24;
+  const [c, w] = prep($("erp"), H);
+  const yOf = v => top + (v - vLo) / (vHi - vLo) * (bottom - top);     // negative up
+  const cell = (w - PAD.l - PAD.r) / (NT - 1);
+
+  if ($("overlay").checked) {
+    for (let k = 0; k < NT; k++) {
+      c.fillStyle = `rgba(252,238,10,${0.5 * M.attr[sel * NT + k] / M.max})`;
+      const x0 = Math.max(PAD.l, xOf(k, w) - cell / 2), x1 = Math.min(w - PAD.r, xOf(k, w) + cell / 2);
+      c.fillRect(x0, top, x1 - x0, bottom - top);
+    }
+  }
+  if ($("truth").checked) {
+    c.fillStyle = "rgba(255,255,255,.09)";
+    for (let k = 0; k < NT; k++) if (TRUTH[sel * NT + k])
+      c.fillRect(xOf(k, w) - cell / 2, top, cell, bottom - top);
+  }
+
+  c.textAlign = "right"; c.textBaseline = "middle";
+  const step = (vHi - vLo) > 12 ? 4 : 2;
+  for (let v = Math.ceil(vLo / step) * step; v <= vHi; v += step) {
+    c.fillStyle = v === 0 ? "#555" : GRID;
+    c.fillRect(PAD.l, Math.round(yOf(v)) - 0.5, w - PAD.l - PAD.r, 1);
+    c.fillStyle = INK;
+    c.fillText((v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v), PAD.l - 6, yOf(v));
+  }
+  c.fillStyle = "#555";
+  c.fillRect(xOf(-T0 / DT, w) - 0.5, top, 1, bottom - top);            // stimulus onset
+  c.save();
+  c.translate(11, (top + bottom) / 2); c.rotate(-Math.PI / 2);
+  c.textAlign = "center"; c.fillStyle = INK;
+  c.fillText("µV (negative up)", 0, 0);
+  c.restore();
+  timeAxis(c, w, bottom);
+
+  for (const [avg, col] of [[avgObj, OBJ], [avgFace, FACE]]) {
+    c.strokeStyle = col; c.lineWidth = 2; c.lineJoin = "round";
+    c.beginPath();
+    for (let k = 0; k < NT; k++) c.lineTo(xOf(k, w), yOf(avg[sel * NT + k]));
+    c.stroke();
+  }
+  cursorLine(c, w, top, bottom);
+  for (const [avg, col] of [[avgObj, OBJ], [avgFace, FACE]]) {
+    c.fillStyle = col;
+    c.beginPath(); c.arc(xOf(cursorK, w), yOf(avg[sel * NT + cursorK]), 3.5, 0, 7); c.fill();
+  }
+}
+
+// --- Attribution heatmap ---
+const ROW = 22, MAP_TOP = 8;
+function drawMap() {
+  const H = MAP_TOP + NE * ROW + 24, bottom = MAP_TOP + NE * ROW;
+  const [c, w] = prep($("map"), H);
+  const cell = (w - PAD.l - PAD.r) / (NT - 1);
+  c.save();
+  c.beginPath(); c.rect(PAD.l, MAP_TOP, w - PAD.l - PAD.r, NE * ROW); c.clip();
+  for (let e = 0; e < NE; e++) for (let k = 0; k < NT; k++) {
+    c.fillStyle = ramp(M.attr[e * NT + k] / M.max);
+    c.fillRect(xOf(k, w) - cell / 2, MAP_TOP + e * ROW, cell + 0.6, ROW - 1);
+  }
+  if ($("truth").checked) {
+    c.strokeStyle = "#fff"; c.lineWidth = 1.5; c.setLineDash([4, 3]);
+    for (let e = 0; e < NE; e++) for (let k = 0; k < NT; k++) {
+      if (!TRUTH[e * NT + k] || (k > 0 && TRUTH[e * NT + k - 1])) continue;
+      let end = k;
+      while (end + 1 < NT && TRUTH[e * NT + end + 1]) end++;
+      c.strokeRect(xOf(k, w) - cell / 2, MAP_TOP + e * ROW + 1, (end - k + 1) * cell, ROW - 3);
+    }
+    c.setLineDash([]);
+  }
+  c.restore();
+  c.strokeStyle = FACE; c.lineWidth = 1.5;
+  c.strokeRect(PAD.l - 1, MAP_TOP + sel * ROW - 0.5, w - PAD.l - PAD.r + 2, ROW);
+  c.textAlign = "right"; c.textBaseline = "middle";
+  ELEC.forEach((el, e) => {
+    c.fillStyle = e === sel ? FACE : INK;
+    c.fillText(el.n, PAD.l - 7, MAP_TOP + e * ROW + ROW / 2);
+  });
+  timeAxis(c, w, bottom);
+  cursorLine(c, w, MAP_TOP, bottom);
+}
+
+// --- Scalp schematic ---
+const SCALP = 230, HEAD_R = 86, SC_X = SCALP / 2, SC_Y = SCALP / 2 + 8;
+const scalpPos = el => [SC_X + el.x * HEAD_R, SC_Y - el.y * HEAD_R];
+function drawScalp() {
+  const [c] = prep($("scalp"), SCALP, SCALP);
+  c.strokeStyle = "#555"; c.lineWidth = 1.5;
+  c.beginPath(); c.arc(SC_X, SC_Y, HEAD_R + 17, 0, 7); c.stroke();
+  c.beginPath();                                                       // nose
+  c.moveTo(SC_X - 10, SC_Y - HEAD_R - 15); c.lineTo(SC_X, SC_Y - HEAD_R - 26);
+  c.lineTo(SC_X + 10, SC_Y - HEAD_R - 15); c.stroke();
+  c.textAlign = "center"; c.textBaseline = "middle";
+  ELEC.forEach((el, e) => {
+    const [x, y] = scalpPos(el), v = M.attr[e * NT + cursorK] / M.max;
+    c.fillStyle = ramp(v);
+    c.strokeStyle = e === sel ? FACE : "#444"; c.lineWidth = e === sel ? 2.5 : 1;
+    c.beginPath(); c.arc(x, y, 12.5, 0, 7); c.fill(); c.stroke();
+    c.fillStyle = v > 0.55 ? "#111" : "#ddd";
+    c.font = "9.5px ui-monospace, Menlo, monospace";
+    c.fillText(el.n, x, y + 0.5);
+  });
+}
+
+// --- Stats / refresh ---
+const fmt = v => (v < 0 ? "−" : "+") + Math.abs(v).toFixed(1);
+function drawAll() {
+  drawErp(); drawMap(); drawScalp();
+  const f = sel * NT + cursorK, pk = M.peak;
+  $("elName").textContent = ELEC[sel].n;
+  $("curT").textContent = timeOf(cursorK);
+  $("stats").textContent =
+    `held-out accuracy: ${(M.acc * 100).toFixed(0)}%\n` +
+    `${M.nTest} unseen trials · chance 50%\n` +
+    `trained on ${N_TRAIN} trials\n` +
+    `${NF} features (${NE} × ${NT})\n` +
+    `simulated + trained in ${fitMs.toFixed(0)} ms\n` +
+    `peak attribution: ${ELEC[Math.floor(pk / NT)].n}, ${timeOf(pk % NT)} ms\n` +
+    `planted cells: ${M.contrast.toFixed(1)}× the rest\n` +
+    `${ELEC[sel].n}, ${timeOf(cursorK)} ms:\n` +
+    `  faces ${fmt(avgFace[f])} µV\n  objects ${fmt(avgObj[f])} µV\n` +
+    `seed ${seed}`;
+  document.querySelectorAll("#chips button").forEach((b, e) => b.classList.toggle("sel", e === sel));
+}
+
+// --- Controls ---
+ELEC.forEach((el, e) => {
+  const b = document.createElement("button");
+  b.textContent = el.n;
+  b.onclick = () => { sel = e; drawAll(); };
+  $("chips").appendChild(b);
+});
+function labels() {
+  $("effVal").textContent = "×" + (+$("eff").value).toFixed(1);
+  $("noiseVal").textContent = (+$("noise").value).toFixed(1) + " µV";
+}
+$("eff").oninput = $("noise").oninput = () => { labels(); rebuild(); };
+$("newData").onclick = () => { seed++; rebuild(); };
+$("overlay").onchange = $("truth").onchange = drawAll;
+
+function pointAt(cv, ev) {
+  const r = cv.getBoundingClientRect();
+  const k = Math.round((ev.clientX - r.left - PAD.l) / (r.width - PAD.l - PAD.r) * (NT - 1));
+  return [Math.max(0, Math.min(NT - 1, k)), ev.clientY - r.top];
+}
+for (const id of ["erp", "map"]) {
+  const cv = $(id);
+  const move = (ev, pick) => {
+    const [k, y] = pointAt(cv, ev);
+    const e = Math.floor((y - MAP_TOP) / ROW);
+    const newSel = pick && id === "map" && e >= 0 && e < NE ? e : sel;
+    if (k === cursorK && newSel === sel) return;
+    cursorK = k; sel = newSel;
+    drawAll();
+  };
+  cv.addEventListener("pointerdown", ev => move(ev, true));
+  cv.addEventListener("pointermove", ev => move(ev, false));
+}
+$("scalp").addEventListener("pointerdown", ev => {
+  const r = $("scalp").getBoundingClientRect();
+  const sx = SCALP / r.width, px = (ev.clientX - r.left) * sx, py = (ev.clientY - r.top) * sx;
+  ELEC.forEach((el, e) => {
+    const [x, y] = scalpPos(el);
+    if (Math.hypot(px - x, py - y) < 14) { sel = e; drawAll(); }
+  });
+});
+addEventListener("resize", drawAll);
+
+labels();
+rebuild();
+</script>
+</body>
+</html>
