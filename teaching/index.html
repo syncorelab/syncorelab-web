@@ -1,43 +1,329 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Lehre — SynCoRe Lab</title>
-<meta name="description" content="Interaktive Demonstrationen aus der Lehre: Konzepte der Allgemeinen Psychologie, im Browser selbst ausprobiert.">
+<title>Teaching — SynCoRe Lab</title>
+<meta name="description" content="Interactive demonstrations and exercises from our teaching: concepts in psychology and scientific writing, tried out directly in the browser.">
+<meta name="theme-color" content="#05050a">
 <link rel="stylesheet" href="../legal.css">
 <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+<style>
+/* ---------- teaching : one chapter in the main site's visual language ---------- */
+html,body{overflow-x:hidden}
+#stage{position:fixed;inset:0;z-index:0;width:100%;height:100%;pointer-events:none}
+#vignette{position:fixed;inset:0;z-index:1;pointer-events:none;
+  background:radial-gradient(ellipse at 50% 50%,transparent 38%,rgba(4,4,9,.9) 100%)}
+.legal-footer{position:relative;z-index:2;background:rgba(5,5,10,.82)}
+
+.chapter{
+  --chapter-color:var(--yellow);
+  position:relative;z-index:2;min-height:calc(100vh - 64px);
+  display:flex;flex-direction:column;justify-content:center;
+  padding:clamp(5rem,12vh,9rem) clamp(1.5rem,7vw,7rem) clamp(4rem,9vh,7rem);
+}
+/* readable scrim: a dark pool behind the text column, the totem beside it stays bright */
+.chapter::before{
+  content:"";position:absolute;inset:2% 0;z-index:-1;pointer-events:none;
+  background:radial-gradient(ellipse 60% 80% at 30% 50%,rgba(3,3,8,.94) 0%,rgba(3,3,8,.72) 42%,transparent 72%);
+  filter:blur(6px);
+}
+.chapter h1,.chapter h2{text-shadow:0 2px 18px rgba(3,3,8,.95),0 0 46px rgba(3,3,8,.8)}
+.chapter p,.kicker{text-shadow:0 1px 10px rgba(3,3,8,.92)}
+
+.num{
+  position:absolute;top:clamp(2.2rem,6vh,4rem);right:clamp(1.5rem,7vw,7rem);
+  font-family:var(--mono);font-size:.75rem;letter-spacing:.35em;color:rgba(252,238,10,.78);
+}
+.num::before{content:"[ "}
+.num::after{content:" ]"}
+
+.kicker{
+  width:min(100%,72rem);display:grid;grid-template-columns:auto auto minmax(2.5rem,1fr) auto;align-items:center;gap:.85rem;
+  margin:0 0 2.2rem;padding:.55rem 1.2rem .55rem .15rem;color:var(--ink);
+  background:linear-gradient(90deg,rgba(3,3,8,.94),rgba(3,3,8,.7) 62%,transparent 100%);
+  font-family:var(--mono);font-size:clamp(.82rem,1vw,.95rem);font-weight:400;letter-spacing:.25em;text-transform:uppercase;
+}
+.kicker::before{content:"// " attr(data-index);color:var(--yellow);letter-spacing:.18em;white-space:nowrap}
+.kicker-line{height:1px;opacity:.22;transform:scaleX(.12);transform-origin:left center;
+  background:linear-gradient(90deg,var(--chapter-color),transparent);
+  animation:signalDraw .9s cubic-bezier(.22,1,.36,1) .3s forwards}
+.kicker-status{opacity:0;color:var(--chapter-color);font-size:.75rem;letter-spacing:.2em;white-space:nowrap;
+  animation:statusIn .45s ease-out .8s forwards,statusPulse 2.4s ease-in-out 1.5s infinite}
+@keyframes signalDraw{to{opacity:.72;transform:scaleX(1)}}
+@keyframes statusIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:none}}
+@keyframes statusPulse{0%,100%{opacity:.55}50%{opacity:1}}
+
+.chapter h1{
+  margin:0;max-width:14ch;
+  font-family:var(--serif);font-weight:300;line-height:1.05;letter-spacing:-.01em;
+  font-size:clamp(2.6rem,6.5vw,5.5rem);
+}
+.chapter h1 em{font-style:italic;background:linear-gradient(100deg,var(--violet),var(--cyan));
+  -webkit-background-clip:text;background-clip:text;color:transparent}
+.lead{max-width:42rem;margin:2.2rem 0 0;color:var(--ink-dim);font-size:clamp(1rem,1.4vw,1.2rem)}
+
+.tiles{display:grid;gap:1.4rem;margin-top:3.2rem;max-width:44rem}
+.link-tile{
+  border:1px solid var(--line);border-radius:4px;padding:1.8rem;display:flex;flex-direction:column;gap:.75rem;
+  color:inherit;text-decoration:none;
+  transition:border-color .4s,transform .4s,box-shadow .4s;background:rgba(11,11,20,.62);backdrop-filter:blur(6px);
+}
+.link-tile:hover,.link-tile:focus-visible{border-color:rgba(95,227,208,.5);transform:translateY(-6px);
+  box-shadow:0 25px 50px -20px rgba(0,0,0,.7)}
+.lt-k{font-family:var(--mono);font-size:.75rem;letter-spacing:.3em;text-transform:uppercase;color:var(--cyan)}
+.link-tile h2{margin:0;font-family:var(--serif);font-weight:400;font-size:clamp(1.5rem,3vw,1.9rem);line-height:1.15}
+.link-tile p{margin:0;color:var(--ink-dim);font-size:.95rem}
+.lt-note{align-self:flex-start;border:1px solid rgba(252,238,10,.5);border-radius:99px;padding:.22rem .7rem;
+  font-family:var(--mono);font-size:.7rem;letter-spacing:.18em;text-transform:uppercase;color:var(--yellow)}
+.lt-go{margin-top:.4rem;font-family:var(--mono);font-size:.75rem;letter-spacing:.25em;text-transform:uppercase;color:var(--ink)}
+.lt-go .arr{display:inline-block;transition:transform .4s}
+.link-tile:hover .lt-go .arr{transform:translateX(5px)}
+
+.spec{position:absolute;top:50%;right:clamp(1.2rem,3vw,2.6rem);transform:translateY(-50%);
+  font-family:var(--mono);font-size:.75rem;letter-spacing:.32em;text-transform:uppercase;
+  color:var(--yellow);opacity:.85;writing-mode:vertical-rl}
+.spec i{font-style:normal;animation:blink 1.1s steps(1) infinite}
+@keyframes blink{0%,49%{opacity:1}50%,100%{opacity:0}}
+
+/* reveal */
+.rv{opacity:0;transform:translate3d(0,48px,0);filter:blur(5px);
+  transition:opacity 1s ease,transform 1.15s cubic-bezier(.22,1,.36,1),filter 1s ease}
+.rv.in{opacity:1;transform:none;filter:blur(0)}
+.rv-d1{transition-delay:.12s}.rv-d2{transition-delay:.24s}.rv-d3{transition-delay:.36s}
+.no-js .rv{opacity:1;transform:none;filter:none}
+
+/* phones: the chapter opens on an empty stage for its totem; the text follows below it */
+@media(max-width:880px){
+  .spec{display:none}
+  .chapter{padding-top:46svh;justify-content:flex-start}
+  .chapter::before{inset:38svh 0 0 0;
+    background:linear-gradient(180deg,transparent 0,rgba(3,3,8,.9) 9rem,rgba(3,3,8,.94) 100%);filter:none}
+  .num{top:1.4rem}
+}
+@media(prefers-reduced-motion:reduce){
+  .rv{opacity:1;transform:none;filter:none;transition:none}
+  .kicker-line{animation:none;opacity:.72;transform:none}
+  .kicker-status{animation:none;opacity:1}
+  .spec i{animation:none}
+  .link-tile,.lt-go .arr{transition:none}
+}
+</style>
 </head>
-<body>
+<body class="no-js">
+<script>document.body.classList.remove("no-js");</script>
+<canvas id="stage" aria-hidden="true"></canvas>
+<div id="vignette" aria-hidden="true"></div>
+
 <header class="legal-header">
   <a class="legal-brand" href="../index.html?skipIntro=1"><strong>SYN·CO·RE</strong> LAB</a>
   <nav class="legal-nav" aria-label="Navigation">
-    <a href="../index.html?skipIntro=1">Zur Website</a>
-    <a href="index.html" aria-current="page">Lehre</a>
+    <a href="../index.html?skipIntro=1">Back to the site</a>
+    <a href="index.html" aria-current="page">Teaching</a>
   </nav>
 </header>
-<main class="legal-main">
-  <p class="legal-kicker">Lehre</p>
-  <h1 class="legal-title">DEMONSTRATIONEN<em>.</em></h1>
-  <article class="legal-copy">
-    <p>Konzepte der Allgemeinen Psychologie lassen sich schwer erzählen und leicht erfahren. Die folgenden Demonstrationen laufen vollständig im Browser — ohne Anmeldung, ohne Datenübertragung, ohne Installation.</p>
 
-    <h2><a href="nachtklappe.html">Die Nachtklappe</a></h2>
-    <p class="legal-document-title">Signalentdeckung · Allgemeine Psychologie I</p>
-    <p>Sie sind die Katzenklappe. Der Kater kommt nachts nach Hause — manchmal mit Beute im Maul, manchmal nur mit einem Blatt. Das Kamerabild ist unscharf, die Zeit knapp. Über drei Nächte entstehen Treffer und Falschalarme, daraus Trennschärfe und Kriterium.</p>
-    <p>Die Demonstration trennt zwei Dinge, die in der Intuition verschmelzen: wie gut man unterscheiden <em>kann</em>, und wie vorsichtig man <em>entscheidet</em>. Eine bessere Kamera verschiebt das eine, Regen und Jagdsaison verschieben das andere — und die Spielenden merken das an den eigenen Zahlen, bevor eine Formel fällt.</p>
-    <p><a href="nachtklappe.html">Demonstration starten →</a></p>
+<main class="chapter">
+  <div class="num" aria-hidden="true">03 demos</div>
+  <div class="kicker rv" data-index="T"><span>Teaching</span><span class="kicker-line"></span><span class="kicker-status" aria-hidden="true">Active</span></div>
+  <h1 class="rv rv-d1">Learn it by <em>doing</em> it.</h1>
+  <p class="lead rv rv-d2">Concepts in psychology are hard to tell and easy to experience. The demonstrations and exercises below run entirely in your browser: no login, no data transfer, no installation.</p>
 
-    <h2 lang="en"><a href="raptor-school.html">Raptor School</a></h2>
-    <p class="legal-document-title" lang="en">Scientific writing · MSc</p>
-    <p lang="en">How do you write a paper? Six short exercises that accompany the slide deck “How to Write a Scientific Paper (and Train a Pet Velociraptor)”: rewrite vague sentences, sort an abstract, tell results from interpretation, spot empty words. Each exercise takes a few minutes and needs no manuscript of your own.</p>
-    <p lang="en">Everything you type stays in your browser. Nothing is stored or sent.</p>
-    <p lang="en"><a href="raptor-school.html">Start the exercises →</a> · <a href="how-to-write-a-scientific-paper.pdf">Slides (PDF) →</a></p>
-  </article>
+  <div class="tiles">
+    <a class="link-tile rv rv-d2" href="nachtklappe.html">
+      <span class="lt-k">Signal detection · General Psychology I</span>
+      <h2 lang="de">Die Nachtklappe</h2>
+      <span class="lt-note">This demonstration is in German</span>
+      <p>You are the cat flap. The cat comes home at night, sometimes with prey in its mouth, sometimes with nothing but a leaf. The camera image is blurry and time is short. Over three nights you collect hits and false alarms, and from them sensitivity and criterion.</p>
+      <p>The demonstration separates two things that merge in intuition: how well you <em>can</em> tell things apart, and how cautiously you <em>decide</em>. A better camera shifts the one, rain and hunting season shift the other, and you notice it in your own numbers before any formula appears.</p>
+      <span class="lt-go">Start the demonstration <span class="arr">→</span></span>
+    </a>
+
+    <a class="link-tile rv rv-d3" href="raptor-school.html">
+      <span class="lt-k">Scientific writing · MSc</span>
+      <h2>Raptor School</h2>
+      <p>How do you write a paper? Six short exercises that accompany the slide deck “How to Write a Scientific Paper (and Train a Pet Velociraptor)”: rewrite vague sentences, sort an abstract, tell results from interpretation, spot empty words. Each exercise takes a few minutes and needs no manuscript of your own.</p>
+      <p>Everything you type stays in your browser. Nothing is stored or sent.</p>
+      <span class="lt-go">Start the exercises <span class="arr">→</span></span>
+    </a>
+
+    <a class="link-tile rv rv-d3" href="how-to-write-a-scientific-paper.pdf">
+      <span class="lt-k">Slides · PDF</span>
+      <h2>How to Write a Scientific Paper</h2>
+      <p>The slide deck behind Raptor School: what belongs in each section of a paper, which sentences velociraptors hate, and a checklist to run before you submit.</p>
+      <span class="lt-go">Open the slides <span class="arr">→</span></span>
+    </a>
+  </div>
+
+  <div class="spec" aria-hidden="true">Specimen //T — Mortarboard <i>_</i></div>
 </main>
+
 <footer class="legal-footer">
   <span>© Benjamin Schöne. Alle Rechte vorbehalten / All rights reserved.</span>
-  <span><a href="../datenschutzerklarung.html">Datenschutzerklärung</a> · <a href="../impressum.html">Impressum</a></span>
+  <span><a href="../datenschutzerklarung.html">Privacy policy</a> · <a href="../impressum.html">Legal notice</a></span>
 </footer>
+
+<script src="../assets/vendor/three-r128.min.js"></script>
+<script>
+/* reveal on load */
+requestAnimationFrame(function(){
+  document.querySelectorAll(".rv").forEach(function(el){el.classList.add("in");});
+});
+
+/* ---------- the mortarboard : teaching totem ---------- */
+(function initTotem(){
+  if(typeof THREE==="undefined")return;
+  var canvas=document.getElementById("stage"),renderer;
+  try{renderer=new THREE.WebGLRenderer({canvas:canvas,antialias:true,alpha:true});}
+  catch(e){canvas.style.display="none";return;}
+  var reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  var scene=new THREE.Scene();
+  scene.fog=new THREE.FogExp2(0x05050a,0.011);
+  var camera=new THREE.PerspectiveCamera(62,1,.1,260);
+
+  var R=function(a,b){return a+Math.random()*(b-a);};
+  var VIOLET=new THREE.Color(0x8b7bff),CYAN=new THREE.Color(0x5fe3d0),
+      WHITE=new THREE.Color(0xffffff),YELL=new THREE.Color(0xfcee0a);
+
+  /* round glow sprite, as on the main stage */
+  var cv=document.createElement("canvas");cv.width=cv.height=64;
+  var cx=cv.getContext("2d"),grad=cx.createRadialGradient(32,32,0,32,32,32);
+  grad.addColorStop(0,"white");
+  grad.addColorStop(.16,"rgba(255,255,255,.92)");
+  grad.addColorStop(.40,"rgba(255,255,255,.24)");
+  grad.addColorStop(1,"rgba(255,255,255,0)");
+  cx.fillStyle=grad;cx.fillRect(0,0,64,64);
+  var sprite=new THREE.CanvasTexture(cv);
+
+  function buildPoints(pos,col,size,op){
+    var g=new THREE.BufferGeometry();
+    g.setAttribute("position",new THREE.BufferAttribute(new Float32Array(pos),3));
+    g.setAttribute("color",new THREE.BufferAttribute(new Float32Array(col),3));
+    return new THREE.Points(g,new THREE.PointsMaterial({
+      size:size,map:sprite,vertexColors:true,transparent:true,opacity:op,
+      depthWrite:false,blending:THREE.AdditiveBlending,sizeAttenuation:true}));
+  }
+
+  var t=new THREE.Color();
+  var cap=new THREE.Group();       /* everything that turns */
+  var S=11,H=1.6;                  /* board side, board height above the origin */
+
+  /* the board : a square plate, violet corner to cyan corner, bright rim */
+  (function(){
+    var pts=[],cols=[],N=26;
+    for(var i=0;i<=N;i++)for(var j=0;j<=N;j++){
+      var u=i/N,v=j/N,edge=(i===0||j===0||i===N||j===N);
+      var layers=edge?3:1;
+      for(var k=0;k<layers;k++){
+        pts.push((u-.5)*S,H-k*.22,(v-.5)*S);
+        t.copy(VIOLET).lerp(CYAN,(u+v)/2).multiplyScalar(edge?1.25:.5+.35*Math.random());
+        cols.push(t.r,t.g,t.b);
+      }
+    }
+    cap.add(buildPoints(pts,cols,.5,1));
+  })();
+
+  /* the skull cap : a shell of rings under the board, narrowing slightly */
+  (function(){
+    var pts=[],cols=[],rings=9,per=64;
+    for(var k=0;k<rings;k++){
+      var f=k/(rings-1),r=3.5-.35*f,y=H-.35-3.3*f;
+      for(var i=0;i<per;i++){
+        var a=i/per*Math.PI*2+k*.05;
+        pts.push(r*Math.cos(a),y,r*Math.sin(a));
+        t.copy(VIOLET).lerp(CYAN,.15+.2*f).multiplyScalar(.32+.5*(1+Math.sin(a))/2+(k===rings-1?.45:0));
+        cols.push(t.r,t.g,t.b);
+      }
+    }
+    cap.add(buildPoints(pts,cols,.42,.95));
+  })();
+
+  /* the button and the cord across the board : yellow, like every signal on this site */
+  (function(){
+    var pts=[],cols=[],i;
+    for(i=0;i<46;i++){
+      var ny=1-2*(i+.5)/46,ring=Math.sqrt(1-ny*ny),a=i*2.39996;
+      pts.push(.55*ring*Math.cos(a),H+.3+.3*ny,.55*ring*Math.sin(a));
+      t.copy(WHITE).lerp(YELL,.6).multiplyScalar(1.2);cols.push(t.r,t.g,t.b);
+    }
+    for(i=0;i<=40;i++){
+      pts.push(i/40*(S/2),H+.14,0);
+      t.copy(YELL).multiplyScalar(.9);cols.push(t.r,t.g,t.b);
+    }
+    cap.add(buildPoints(pts,cols,.42,1));
+  })();
+
+  /* the tassel : hangs from the rim and swings on its own pivot */
+  var tassel=new THREE.Group();
+  tassel.position.set(S/2,H+.1,0);
+  (function(){
+    var pts=[],cols=[],i,L=4.6;
+    for(i=0;i<=34;i++){                 /* cord */
+      pts.push(0,-i/34*L,0);
+      t.copy(YELL).multiplyScalar(.95);cols.push(t.r,t.g,t.b);
+    }
+    for(i=0;i<16;i++){                  /* knot */
+      pts.push(R(-.2,.2),-L+R(-.2,.2),R(-.2,.2));
+      t.copy(WHITE).lerp(YELL,.5).multiplyScalar(1.3);cols.push(t.r,t.g,t.b);
+    }
+    for(var s=0;s<18;s++){              /* strands, fanning out a little */
+      var a=s/18*Math.PI*2,sp=R(.1,.42);
+      for(i=1;i<=12;i++){
+        var f=i/12;
+        pts.push(Math.cos(a)*sp*f,-L-f*2,Math.sin(a)*sp*f);
+        t.copy(YELL).lerp(WHITE,.15).multiplyScalar(1-.45*f);cols.push(t.r,t.g,t.b);
+      }
+    }
+    tassel.add(buildPoints(pts,cols,.4,1));
+  })();
+  cap.add(tassel);
+
+  /* tilt toward the viewer so the top of the board reads */
+  var tilt=new THREE.Group();
+  tilt.rotation.set(.42,0,-.14);
+  tilt.add(cap);
+  scene.add(tilt);
+
+  /* dust : sparse, kept away from the totem */
+  (function(){
+    var pts=[],cols=[];
+    for(var i=0;i<260;i++){
+      pts.push(R(-70,70),R(-42,42),R(-110,-18));
+      t.copy(Math.random()<.5?VIOLET:CYAN).multiplyScalar(R(.15,.55));cols.push(t.r,t.g,t.b);
+    }
+    scene.add(buildPoints(pts,cols,.5,.8));
+  })();
+
+  function place(){
+    var w=innerWidth,h=innerHeight,mobile=w<=880;
+    renderer.setSize(w,h,false);
+    camera.aspect=w/h;camera.updateProjectionMatrix();
+    var XF=Math.min(1.35,Math.max(1,(w/h)/1.55));
+    if(mobile){tilt.position.set(0,9.5,-40);}
+    else{tilt.position.set(13*XF,1.5,-30);}
+  }
+  place();
+  addEventListener("resize",place);
+
+  var t0=performance.now(),running=true;
+  function frame(now){
+    var s=(now-t0)/1000;
+    cap.rotation.y=.6+s*.22;
+    tassel.rotation.z=Math.sin(s*1.3)*.16;
+    tassel.rotation.x=Math.cos(s*.9)*.1;
+    tilt.position.y+=((innerWidth<=880?9.5:1.5)+Math.sin(s*.7)*.5+scrollY*.012-tilt.position.y)*.08;
+    renderer.render(scene,camera);
+    if(running)requestAnimationFrame(frame);
+  }
+  if(reduce){cap.rotation.y=.6;renderer.render(scene,camera);addEventListener("resize",function(){renderer.render(scene,camera);});}
+  else{
+    requestAnimationFrame(frame);
+    document.addEventListener("visibilitychange",function(){
+      running=!document.hidden;if(running)requestAnimationFrame(frame);
+    });
+  }
+})();
+</script>
 </body>
 </html>
