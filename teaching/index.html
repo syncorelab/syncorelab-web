@@ -170,21 +170,25 @@ requestAnimationFrame(function(){
   document.querySelectorAll(".rv").forEach(function(el){el.classList.add("in");});
 });
 
-/* ---------- the mortarboard : teaching totem ---------- */
+/* ---------- the mortarboard : teaching totem ----------
+   loose neurons condense into a graduation cap; impulses run along
+   their axons into the cap and spread through its lattice */
 (function initTotem(){
   if(typeof THREE==="undefined")return;
   var canvas=document.getElementById("stage"),renderer;
   try{renderer=new THREE.WebGLRenderer({canvas:canvas,antialias:true,alpha:true});}
   catch(e){canvas.style.display="none";return;}
   var reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var small=innerWidth<=880;
   renderer.setPixelRatio(Math.min(devicePixelRatio,2));
   var scene=new THREE.Scene();
-  scene.fog=new THREE.FogExp2(0x05050a,0.011);
+  scene.fog=new THREE.FogExp2(0x05050a,0.012);
   var camera=new THREE.PerspectiveCamera(62,1,.1,260);
 
   var R=function(a,b){return a+Math.random()*(b-a);};
   var VIOLET=new THREE.Color(0x8b7bff),CYAN=new THREE.Color(0x5fe3d0),
       WHITE=new THREE.Color(0xffffff),YELL=new THREE.Color(0xfcee0a);
+  var tc=new THREE.Color();
 
   /* round glow sprite, as on the main stage */
   var cv=document.createElement("canvas");cv.width=cv.height=64;
@@ -196,88 +200,159 @@ requestAnimationFrame(function(){
   cx.fillStyle=grad;cx.fillRect(0,0,64,64);
   var sprite=new THREE.CanvasTexture(cv);
 
-  function buildPoints(pos,col,size,op){
+  function makePoints(n,size,op){
     var g=new THREE.BufferGeometry();
-    g.setAttribute("position",new THREE.BufferAttribute(new Float32Array(pos),3));
-    g.setAttribute("color",new THREE.BufferAttribute(new Float32Array(col),3));
-    return new THREE.Points(g,new THREE.PointsMaterial({
+    g.setAttribute("position",new THREE.BufferAttribute(new Float32Array(n*3),3));
+    g.setAttribute("color",new THREE.BufferAttribute(new Float32Array(n*3),3));
+    var m=new THREE.Points(g,new THREE.PointsMaterial({
       size:size,map:sprite,vertexColors:true,transparent:true,opacity:op,
       depthWrite:false,blending:THREE.AdditiveBlending,sizeAttenuation:true}));
+    m.frustumCulled=false;return m;
+  }
+  function makeLines(nSeg,op){
+    var g=new THREE.BufferGeometry();
+    g.setAttribute("position",new THREE.BufferAttribute(new Float32Array(nSeg*6),3));
+    g.setAttribute("color",new THREE.BufferAttribute(new Float32Array(nSeg*6),3));
+    var m=new THREE.LineSegments(g,new THREE.LineBasicMaterial({
+      vertexColors:true,transparent:true,opacity:op,
+      depthWrite:false,blending:THREE.AdditiveBlending}));
+    m.frustumCulled=false;return m;
   }
 
-  var t=new THREE.Color();
-  var cap=new THREE.Group();       /* everything that turns */
-  var S=11,H=1.6;                  /* board side, board height above the origin */
+  var cap=new THREE.Group();      /* everything that turns */
+  var S=11,H=1.6;                 /* board side, board height above the origin */
 
-  /* the board : a square plate, violet corner to cyan corner, bright rim */
+  /* ----- the cap as a lattice of neurons: nodes (somata) and edges (fine fibres) ----- */
+  var T=[],base=[],adj=[],edges=[];   /* target xyz, base rgb, neighbours, [a,b] */
+  function node(x,y,z,col,gain){
+    T.push(x,y,z);base.push(col.r*gain,col.g*gain,col.b*gain);adj.push([]);
+    return adj.length-1;
+  }
+  function edge(a,b){edges.push(a,b);adj[a].push(b);adj[b].push(a);}
+
+  var G=10,board=[],i,j,k;
+  for(i=0;i<=G;i++){board.push([]);for(j=0;j<=G;j++){
+    var u=i/G,v=j/G,rim=(i===0||j===0||i===G||j===G);
+    tc.copy(VIOLET).lerp(CYAN,(u+v)/2);
+    board[i].push(node((u-.5)*S,H,(v-.5)*S,tc,rim?1:.62));
+  }}
+  for(i=0;i<=G;i++)for(j=0;j<=G;j++){
+    if(i<G)edge(board[i][j],board[i+1][j]);
+    if(j<G)edge(board[i][j],board[i][j+1]);
+  }
+  var RINGS=5,PER=18,rings=[];
+  for(k=0;k<RINGS;k++){rings.push([]);
+    var f=k/(RINGS-1),rr=3.5-.35*f,yy=H-.4-3.3*f;
+    for(i=0;i<PER;i++){
+      var a=i/PER*Math.PI*2+k*.09;
+      tc.copy(VIOLET).lerp(CYAN,.12+.25*f);
+      rings[k].push(node(rr*Math.cos(a),yy,rr*Math.sin(a),tc,k===RINGS-1?.95:.6));
+    }
+  }
+  for(k=0;k<RINGS;k++)for(i=0;i<PER;i++){
+    edge(rings[k][i],rings[k][(i+1)%PER]);
+    if(k<RINGS-1)edge(rings[k][i],rings[k+1][i]);
+  }
+  /* stitch the crown to the board so impulses can cross over */
+  for(i=0;i<PER;i+=3){
+    var p=rings[0][i],bi=Math.round((T[p*3]/S+.5)*G),bj=Math.round((T[p*3+2]/S+.5)*G);
+    edge(p,board[bi][bj]);
+  }
+  /* button, cord, tassel: yellow, like every signal on this site */
+  var button=node(0,H+.5,0,YELL,1.15);edge(button,board[G/2][G/2]);
+  var prev=button,cord=[];
+  for(i=1;i<=5;i++){var c=node(i/5*(S/2),H+.16,0,YELL,.9);edge(prev,c);prev=c;cord.push(c);}
+  var TL=4.4,tassel=[],strands=[],pivot=prev;
+  for(i=1;i<=7;i++){var tn=node(S/2,H+.16-i/7*TL,0,YELL,.95);edge(prev,tn);prev=tn;tassel.push(tn);}
+  for(i=0;i<7;i++){var sn=node(S/2,H-TL-1.9,0,YELL,.7);edge(prev,sn);strands.push(sn);}
+
+  var N=adj.length,E=edges.length/2;
+
+  /* filler points: the surfaces between the nodes, so the cap reads as a solid shape */
+  var FT=[],Fbase=[];
   (function(){
-    var pts=[],cols=[],N=26;
-    for(var i=0;i<=N;i++)for(var j=0;j<=N;j++){
-      var u=i/N,v=j/N,edge=(i===0||j===0||i===N||j===N);
-      var layers=edge?3:1;
-      for(var k=0;k<layers;k++){
-        pts.push((u-.5)*S,H-k*.22,(v-.5)*S);
-        t.copy(VIOLET).lerp(CYAN,(u+v)/2).multiplyScalar(edge?1.25:.5+.35*Math.random());
-        cols.push(t.r,t.g,t.b);
+    var M=small?18:24,x,z;
+    for(x=0;x<=M;x++)for(z=0;z<=M;z++){
+      FT.push((x/M-.5)*S,H-.12,(z/M-.5)*S);
+      tc.copy(VIOLET).lerp(CYAN,(x+z)/(2*M)).multiplyScalar(R(.22,.5));Fbase.push(tc.r,tc.g,tc.b);
+    }
+    var rg=9,per=small?34:46,q,w;
+    for(q=0;q<rg;q++){var ff=q/(rg-1),r2=3.5-.35*ff,y2=H-.4-3.3*ff;
+      for(w=0;w<per;w++){var an=w/per*Math.PI*2+q*.05;
+        FT.push(r2*Math.cos(an),y2,r2*Math.sin(an));
+        tc.copy(VIOLET).lerp(CYAN,.15+.2*ff).multiplyScalar(.18+.3*(1+Math.sin(an))/2);Fbase.push(tc.r,tc.g,tc.b);
       }
     }
-    cap.add(buildPoints(pts,cols,.5,1));
   })();
+  var F=FT.length/3;
 
-  /* the skull cap : a shell of rings under the board, narrowing slightly */
+  /* where every particle drifts before it condenses: a wide, deep cloud */
+  function scatter(n){
+    var s=new Float32Array(n*3),d=new Float32Array(n),ph=new Float32Array(n);
+    for(var q=0;q<n;q++){
+      var th=R(0,Math.PI*2),ph2=Math.acos(R(-1,1)),r=R(13,small?24:34);
+      s[q*3]=r*Math.sin(ph2)*Math.cos(th);
+      s[q*3+1]=r*Math.cos(ph2)*.7;
+      s[q*3+2]=r*Math.sin(ph2)*Math.sin(th);
+      d[q]=R(0,.5);ph[q]=R(0,6.28);
+    }
+    return {s:s,d:d,ph:ph};
+  }
+  var nS=scatter(N),fS=scatter(F);
+  var P=new Float32Array(N*3),prog=new Float32Array(N);
+  var energy=new Float32Array(N),lastAct=new Float32Array(N).fill(-9);
+
+  var nodePts=makePoints(N,.62,1),fillPts=makePoints(F,.36,.9),lattice=makeLines(E,.55);
+  cap.add(fillPts);cap.add(lattice);cap.add(nodePts);
+
+  /* ----- free neurons around the cap: soma, dendrites, one axon into the lattice ----- */
+  var NEUR=small?7:13,SEG=26,DEN=5,DSEG=6;
+  var neurons=[],entry=[];
+  for(i=0;i<=G;i++){entry.push(board[i][0],board[i][G],board[0][i],board[G][i]);}
+  for(i=0;i<PER;i++)entry.push(rings[RINGS-1][i]);
+  var somaPts=makePoints(NEUR*30,.5,1),axons=makeLines(NEUR*SEG,.5),dendrites=makeLines(NEUR*DEN*DSEG*2,.34);
+  cap.add(dendrites);cap.add(axons);cap.add(somaPts);
   (function(){
-    var pts=[],cols=[],rings=9,per=64;
-    for(var k=0;k<rings;k++){
-      var f=k/(rings-1),r=3.5-.35*f,y=H-.35-3.3*f;
-      for(var i=0;i<per;i++){
-        var a=i/per*Math.PI*2+k*.05;
-        pts.push(r*Math.cos(a),y,r*Math.sin(a));
-        t.copy(VIOLET).lerp(CYAN,.15+.2*f).multiplyScalar(.32+.5*(1+Math.sin(a))/2+(k===rings-1?.45:0));
-        cols.push(t.r,t.g,t.b);
+    var sp=somaPts.geometry.attributes.position.array,sc=somaPts.geometry.attributes.color.array;
+    var dp=dendrites.geometry.attributes.position.array,dc=dendrites.geometry.attributes.color.array,di=0;
+    for(var n=0;n<NEUR;n++){
+      var a=n/NEUR*Math.PI*2+R(-.25,.25),r=R(small?8:12,small?13:21),y=R(-9,9);
+      var o=[r*Math.cos(a),y,r*Math.sin(a)];
+      var tgt=entry[Math.floor(Math.random()*entry.length)];
+      neurons.push({o:o,tgt:tgt,bend:[R(-4,4),R(1,6)*(y>0?1:-1),R(-4,4)],
+        pulses:[],next:R(.5,3),hue:Math.random()});
+      for(var q=0;q<30;q++){                       /* soma: a small shell with a bright core */
+        var core=q<5,rad=core?.18:.75,ny=R(-1,1),th=R(0,6.28),ring=Math.sqrt(1-ny*ny);
+        sp[(n*30+q)*3]=o[0]+rad*ring*Math.cos(th);
+        sp[(n*30+q)*3+1]=o[1]+rad*ny;
+        sp[(n*30+q)*3+2]=o[2]+rad*ring*Math.sin(th);
+        if(core)tc.copy(WHITE).lerp(CYAN,.3).multiplyScalar(1.2);
+        else tc.copy(VIOLET).lerp(CYAN,neurons[n].hue).multiplyScalar(R(.35,.8));
+        sc[(n*30+q)*3]=tc.r;sc[(n*30+q)*3+1]=tc.g;sc[(n*30+q)*3+2]=tc.b;
+      }
+      for(var d=0;d<DEN;d++){                      /* dendrites: short branching random walks */
+        for(var br=0;br<2;br++){
+          var px=o[0],py=o[1],pz=o[2];
+          var dx=R(-1,1),dy=R(-1,1),dz=R(-1,1);
+          for(var s=0;s<DSEG;s++){
+            var l=Math.hypot(dx,dy,dz)||1,step=R(.5,1.05);
+            var qx=px+dx/l*step,qy=py+dy/l*step,qz=pz+dz/l*step;
+            dp[di*6]=px;dp[di*6+1]=py;dp[di*6+2]=pz;dp[di*6+3]=qx;dp[di*6+4]=qy;dp[di*6+5]=qz;
+            var fa=1-s/DSEG,fb=1-(s+1)/DSEG;
+            tc.copy(VIOLET).lerp(CYAN,neurons[n].hue);
+            dc[di*6]=tc.r*fa;dc[di*6+1]=tc.g*fa;dc[di*6+2]=tc.b*fa;
+            dc[di*6+3]=tc.r*fb;dc[di*6+4]=tc.g*fb;dc[di*6+5]=tc.b*fb;
+            di++;px=qx;py=qy;pz=qz;
+            dx+=R(-.7,.7);dy+=R(-.7,.7);dz+=R(-.7,.7);
+          }
+        }
       }
     }
-    cap.add(buildPoints(pts,cols,.42,.95));
   })();
 
-  /* the button and the cord across the board : yellow, like every signal on this site */
-  (function(){
-    var pts=[],cols=[],i;
-    for(i=0;i<46;i++){
-      var ny=1-2*(i+.5)/46,ring=Math.sqrt(1-ny*ny),a=i*2.39996;
-      pts.push(.55*ring*Math.cos(a),H+.3+.3*ny,.55*ring*Math.sin(a));
-      t.copy(WHITE).lerp(YELL,.6).multiplyScalar(1.2);cols.push(t.r,t.g,t.b);
-    }
-    for(i=0;i<=40;i++){
-      pts.push(i/40*(S/2),H+.14,0);
-      t.copy(YELL).multiplyScalar(.9);cols.push(t.r,t.g,t.b);
-    }
-    cap.add(buildPoints(pts,cols,.42,1));
-  })();
-
-  /* the tassel : hangs from the rim and swings on its own pivot */
-  var tassel=new THREE.Group();
-  tassel.position.set(S/2,H+.1,0);
-  (function(){
-    var pts=[],cols=[],i,L=4.6;
-    for(i=0;i<=34;i++){                 /* cord */
-      pts.push(0,-i/34*L,0);
-      t.copy(YELL).multiplyScalar(.95);cols.push(t.r,t.g,t.b);
-    }
-    for(i=0;i<16;i++){                  /* knot */
-      pts.push(R(-.2,.2),-L+R(-.2,.2),R(-.2,.2));
-      t.copy(WHITE).lerp(YELL,.5).multiplyScalar(1.3);cols.push(t.r,t.g,t.b);
-    }
-    for(var s=0;s<18;s++){              /* strands, fanning out a little */
-      var a=s/18*Math.PI*2,sp=R(.1,.42);
-      for(i=1;i<=12;i++){
-        var f=i/12;
-        pts.push(Math.cos(a)*sp*f,-L-f*2,Math.sin(a)*sp*f);
-        t.copy(YELL).lerp(WHITE,.15).multiplyScalar(1-.45*f);cols.push(t.r,t.g,t.b);
-      }
-    }
-    tassel.add(buildPoints(pts,cols,.4,1));
-  })();
-  cap.add(tassel);
+  /* impulses: a bright head with a short tail on each axon */
+  var MAXP=NEUR*3,TAIL=4,pulsePts=makePoints(MAXP*TAIL,.85,1);
+  cap.add(pulsePts);
 
   /* tilt toward the viewer so the top of the board reads */
   var tilt=new THREE.Group();
@@ -285,42 +360,174 @@ requestAnimationFrame(function(){
   tilt.add(cap);
   scene.add(tilt);
 
-  /* dust : sparse, kept away from the totem */
+  /* dust : sparse, far behind, for depth */
   (function(){
-    var pts=[],cols=[];
-    for(var i=0;i<260;i++){
-      pts.push(R(-70,70),R(-42,42),R(-110,-18));
-      t.copy(Math.random()<.5?VIOLET:CYAN).multiplyScalar(R(.15,.55));cols.push(t.r,t.g,t.b);
+    var m=makePoints(260,.5,.8),p=m.geometry.attributes.position.array,c=m.geometry.attributes.color.array;
+    for(var q=0;q<260;q++){
+      p[q*3]=R(-70,70);p[q*3+1]=R(-42,42);p[q*3+2]=R(-110,-18);
+      tc.copy(Math.random()<.5?VIOLET:CYAN).multiplyScalar(R(.15,.55));
+      c[q*3]=tc.r;c[q*3+1]=tc.g;c[q*3+2]=tc.b;
     }
-    scene.add(buildPoints(pts,cols,.5,.8));
+    scene.add(m);
   })();
 
+  var baseY=1.5;
   function place(){
-    var w=innerWidth,h=innerHeight,mobile=w<=880;
+    var w=innerWidth,h=innerHeight;
+    small=w<=880;
     renderer.setSize(w,h,false);
     camera.aspect=w/h;camera.updateProjectionMatrix();
     var XF=Math.min(1.35,Math.max(1,(w/h)/1.55));
-    if(mobile){tilt.position.set(0,9.5,-40);}
-    else{tilt.position.set(13*XF,1.5,-30);}
+    if(small){baseY=9.5;tilt.position.set(0,baseY,-42);}
+    else{baseY=1.5;tilt.position.set(13*XF,baseY,-31);}
   }
   place();
   addEventListener("resize",place);
 
+  /* pointer parallax: the camera leans a little, which is what gives the depth away */
+  var mx=0,my=0;
+  addEventListener("pointermove",function(e){mx=e.clientX/innerWidth-.5;my=e.clientY/innerHeight-.5;});
+
+  function ease(x){x=x<0?0:x>1?1:x;return x*x*x*(x*(x*6-15)+10);}
+  /* one cycle: condense, hold as a cap, loosen again */
+  var CYCLE=20,FORM=5.5,LOOSE=3.5,LOW=.3;
+  function globalProgress(s){
+    var c=s%CYCLE,first=s<CYCLE;
+    if(c<FORM)return (first?0:LOW)+(1-(first?0:LOW))*(c/FORM);
+    if(c<CYCLE-LOOSE)return 1;
+    return 1-(1-LOW)*ease((c-(CYCLE-LOOSE))/LOOSE);
+  }
+
+  var queue=[];
+  function activate(n,s,now){
+    if(s<.09||now-lastAct[n]<.6)return;
+    lastAct[n]=now;if(s>energy[n])energy[n]=s;
+    var nb=adj[n];
+    for(var q=0;q<nb.length;q++)queue.push(nb[q],now+.05,s*.82);
+  }
+
+  var nPos=nodePts.geometry.attributes.position.array,nCol=nodePts.geometry.attributes.color.array;
+  var fPos=fillPts.geometry.attributes.position.array,fCol=fillPts.geometry.attributes.color.array;
+  var lPos=lattice.geometry.attributes.position.array,lCol=lattice.geometry.attributes.color.array;
+  var aPos=axons.geometry.attributes.position.array,aCol=axons.geometry.attributes.color.array;
+  var pPos=pulsePts.geometry.attributes.position.array,pCol=pulsePts.geometry.attributes.color.array;
+  var tmp=[0,0,0];
+  function bez(nr,u,out){
+    var o=nr.o,e=nr.tgt*3,b=nr.bend;
+    var cx2=(o[0]+P[e])/2+b[0],cy2=(o[1]+P[e+1])/2+b[1],cz2=(o[2]+P[e+2])/2+b[2];
+    var w0=(1-u)*(1-u),w1=2*u*(1-u),w2=u*u;
+    out[0]=w0*o[0]+w1*cx2+w2*P[e];out[1]=w0*o[1]+w1*cy2+w2*P[e+1];out[2]=w0*o[2]+w1*cz2+w2*P[e+2];
+  }
+
+  var last=0;
+  function update(s,dt){
+    var g=reduce?1:globalProgress(s),q,n,e2,a2,b2;
+    /* the tassel swings on the rim */
+    var sw=reduce?0:Math.sin(s*1.3)*.2,sw2=reduce?0:Math.cos(s*.9)*.12;
+    for(q=0;q<tassel.length;q++){
+      var len=(q+1)/tassel.length*TL;
+      T[tassel[q]*3]=S/2+Math.sin(sw)*len;T[tassel[q]*3+1]=H+.16-Math.cos(sw)*len;T[tassel[q]*3+2]=Math.sin(sw2)*len;
+    }
+    var kx=S/2+Math.sin(sw)*TL,ky=H+.16-Math.cos(sw)*TL,kz=Math.sin(sw2)*TL;
+    for(q=0;q<strands.length;q++){
+      var sa=q/strands.length*6.28;
+      T[strands[q]*3]=kx+Math.cos(sa)*.4+Math.sin(sw)*1.9;T[strands[q]*3+1]=ky-1.9;T[strands[q]*3+2]=kz+Math.sin(sa)*.4+Math.sin(sw2)*1.9;
+    }
+    /* nodes */
+    for(n=0;n<N;n++){
+      var pr=ease((g-nS.d[n])/(1-.5));prog[n]=pr;
+      var loose=1-pr,jit=.05+loose*1.4,ph=nS.ph[n];
+      nPos[n*3]=P[n*3]=nS.s[n*3]+(T[n*3]-nS.s[n*3])*pr+Math.sin(s*.7+ph)*jit;
+      nPos[n*3+1]=P[n*3+1]=nS.s[n*3+1]+(T[n*3+1]-nS.s[n*3+1])*pr+Math.cos(s*.6+ph*1.3)*jit;
+      nPos[n*3+2]=P[n*3+2]=nS.s[n*3+2]+(T[n*3+2]-nS.s[n*3+2])*pr+Math.sin(s*.5+ph*.7)*jit;
+      energy[n]*=Math.pow(.02,dt);
+      var en=energy[n],gain=.75+en*1.6;
+      nCol[n*3]=base[n*3]*gain+en*.95;nCol[n*3+1]=base[n*3+1]*gain+en*.9;nCol[n*3+2]=base[n*3+2]*gain+en*.25;
+    }
+    /* filler */
+    for(q=0;q<F;q++){
+      var fp=ease((g-fS.d[q])/(1-.5)),fl=1-fp,fj=fl*1.6,fph=fS.ph[q];
+      fPos[q*3]=fS.s[q*3]+(FT[q*3]-fS.s[q*3])*fp+Math.sin(s*.6+fph)*fj;
+      fPos[q*3+1]=fS.s[q*3+1]+(FT[q*3+1]-fS.s[q*3+1])*fp+Math.cos(s*.5+fph)*fj;
+      fPos[q*3+2]=fS.s[q*3+2]+(FT[q*3+2]-fS.s[q*3+2])*fp+Math.sin(s*.4+fph*1.7)*fj;
+      var fg=.35+.65*fp;
+      fCol[q*3]=Fbase[q*3]*fg;fCol[q*3+1]=Fbase[q*3+1]*fg;fCol[q*3+2]=Fbase[q*3+2]*fg;
+    }
+    /* lattice: fine fibres between neighbours; long and faint while loose */
+    for(e2=0;e2<E;e2++){
+      a2=edges[e2*2];b2=edges[e2*2+1];
+      lPos[e2*6]=P[a2*3];lPos[e2*6+1]=P[a2*3+1];lPos[e2*6+2]=P[a2*3+2];
+      lPos[e2*6+3]=P[b2*3];lPos[e2*6+4]=P[b2*3+1];lPos[e2*6+5]=P[b2*3+2];
+      var vis=.22+.78*Math.min(prog[a2],prog[b2]),ga=vis*(.55+energy[a2]*1.8),gb=vis*(.55+energy[b2]*1.8);
+      lCol[e2*6]=base[a2*3]*ga+energy[a2]*.8;lCol[e2*6+1]=base[a2*3+1]*ga+energy[a2]*.75;lCol[e2*6+2]=base[a2*3+2]*ga+energy[a2]*.2;
+      lCol[e2*6+3]=base[b2*3]*gb+energy[b2]*.8;lCol[e2*6+4]=base[b2*3+1]*gb+energy[b2]*.75;lCol[e2*6+5]=base[b2*3+2]*gb+energy[b2]*.2;
+    }
+    /* axons follow their target node; impulses ride them */
+    var pi=0,formed=g>.92;
+    for(n=0;n<NEUR;n++){
+      var nr=neurons[n],x0,y0,z0;
+      bez(nr,0,tmp);x0=tmp[0];y0=tmp[1];z0=tmp[2];
+      for(q=0;q<SEG;q++){
+        bez(nr,(q+1)/SEG,tmp);
+        var ix=(n*SEG+q)*6;
+        aPos[ix]=x0;aPos[ix+1]=y0;aPos[ix+2]=z0;aPos[ix+3]=tmp[0];aPos[ix+4]=tmp[1];aPos[ix+5]=tmp[2];
+        var m0=q/SEG,m1=(q+1)/SEG,dim=.3+.7*g;
+        tc.copy(VIOLET).lerp(CYAN,m0).multiplyScalar(dim*(.5+.5*m0));aCol[ix]=tc.r;aCol[ix+1]=tc.g;aCol[ix+2]=tc.b;
+        tc.copy(VIOLET).lerp(CYAN,m1).multiplyScalar(dim*(.5+.5*m1));aCol[ix+3]=tc.r;aCol[ix+4]=tc.g;aCol[ix+5]=tc.b;
+        x0=tmp[0];y0=tmp[1];z0=tmp[2];
+      }
+      if(!reduce){
+        nr.next-=dt;
+        if(formed&&nr.next<=0&&nr.pulses.length<3){nr.pulses.push(0);nr.next=R(1.1,3.6);}
+        for(q=nr.pulses.length-1;q>=0;q--){
+          nr.pulses[q]+=dt*.55;
+          if(nr.pulses[q]>=1){nr.pulses.splice(q,1);activate(nr.tgt,1,s);continue;}
+          for(var tl=0;tl<TAIL&&pi<MAXP*TAIL;tl++){
+            var uu=nr.pulses[q]-tl*.025;if(uu<0)uu=0;
+            bez(nr,uu,tmp);
+            pPos[pi*3]=tmp[0];pPos[pi*3+1]=tmp[1];pPos[pi*3+2]=tmp[2];
+            var br2=(1-tl/TAIL);br2*=br2;
+            pCol[pi*3]=1.2*br2;pCol[pi*3+1]=1.12*br2;pCol[pi*3+2]=.45*br2;pi++;
+          }
+        }
+      }
+    }
+    for(;pi<MAXP*TAIL;pi++){pCol[pi*3]=pCol[pi*3+1]=pCol[pi*3+2]=0;pPos[pi*3+1]=-9999;}
+    /* the wave through the lattice */
+    if(queue.length){
+      var keep=[];
+      for(q=0;q<queue.length;q+=3){
+        if(queue[q+1]<=s)activate(queue[q],queue[q+2],s);
+        else keep.push(queue[q],queue[q+1],queue[q+2]);
+      }
+      queue=keep.length>3000?keep.slice(0,3000):keep;
+    }
+    nodePts.geometry.attributes.position.needsUpdate=nodePts.geometry.attributes.color.needsUpdate=true;
+    fillPts.geometry.attributes.position.needsUpdate=fillPts.geometry.attributes.color.needsUpdate=true;
+    lattice.geometry.attributes.position.needsUpdate=lattice.geometry.attributes.color.needsUpdate=true;
+    axons.geometry.attributes.position.needsUpdate=axons.geometry.attributes.color.needsUpdate=true;
+    pulsePts.geometry.attributes.position.needsUpdate=pulsePts.geometry.attributes.color.needsUpdate=true;
+  }
+
   var t0=performance.now(),running=true;
   function frame(now){
-    var s=(now-t0)/1000;
-    cap.rotation.y=.6+s*.22;
-    tassel.rotation.z=Math.sin(s*1.3)*.16;
-    tassel.rotation.x=Math.cos(s*.9)*.1;
-    tilt.position.y+=((innerWidth<=880?9.5:1.5)+Math.sin(s*.7)*.5+scrollY*.012-tilt.position.y)*.08;
+    var s=(now-t0)/1000,dt=Math.min(.05,s-last);last=s;
+    update(s,dt);
+    cap.rotation.y=.6+s*.16;
+    tilt.position.y+=(baseY+Math.sin(s*.7)*.5+scrollY*.012-tilt.position.y)*.08;
+    camera.position.x+=(mx*2.4-camera.position.x)*.05;
+    camera.position.y+=(-my*1.6-camera.position.y)*.05;
+    camera.lookAt(camera.position.x*.4,camera.position.y*.4,-31);
     renderer.render(scene,camera);
     if(running)requestAnimationFrame(frame);
   }
-  if(reduce){cap.rotation.y=.6;renderer.render(scene,camera);addEventListener("resize",function(){renderer.render(scene,camera);});}
-  else{
+  if(reduce){
+    cap.rotation.y=.6;update(0,0);renderer.render(scene,camera);
+    addEventListener("resize",function(){renderer.render(scene,camera);});
+  }else{
     requestAnimationFrame(frame);
     document.addEventListener("visibilitychange",function(){
-      running=!document.hidden;if(running)requestAnimationFrame(frame);
+      running=!document.hidden;if(running){last=(performance.now()-t0)/1000;requestAnimationFrame(frame);}
     });
   }
 })();
