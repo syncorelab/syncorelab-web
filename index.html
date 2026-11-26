@@ -2422,7 +2422,242 @@ window.addEventListener("resize",measureCameraStops);
       }};
     })();
 
-    three={renderer,scene,camera,cull,pulses,vesicles,motes,wave,helixObj,galaxyObj,portalObj,hmd,brain,sherpa,seam,neuronMat,neuronBoost:0,ripple:null,scanTime,
+    /* ---------- the axon comes alive : twisting fibres, myelin, saltatory impulses,
+       and collaterals that grow out to every totem and feed it ---------- */
+    let axon=null;
+    (function(){
+      if(!pathCurve)return;
+      const t=new THREE.Color();
+      const SAMPLES=mobile?240:520,FIB=3;
+      const frames=pathCurve.computeFrenetFrames(SAMPLES,false);
+      const mid=[];for(let i=0;i<=SAMPLES;i++)mid.push(pathCurve.getPointAt(i/SAMPLES));
+
+      /* three fine fibres wound around the thread; the winding slowly travels */
+      const fPos=new Float32Array(FIB*SAMPLES*6),fCol=new Float32Array(FIB*SAMPLES*6);
+      for(let f=0;f<FIB;f++)for(let i=0;i<SAMPLES;i++){
+        const ix=(f*SAMPLES+i)*6,m=i/SAMPLES,sh=.42+.2*Math.sin(i*.07+f*2.1);
+        t.copy(VIOLET).lerp(CYAN,m).multiplyScalar(sh);
+        fCol[ix]=fCol[ix+3]=t.r;fCol[ix+1]=fCol[ix+4]=t.g;fCol[ix+2]=fCol[ix+5]=t.b;
+      }
+      const fibres=buildLines(fPos,fCol,.7);
+      fibres.frustumCulled=false;
+      scene.add(fibres);
+      const fAttr=fibres.geometry.attributes.position;
+      const wound=[0,0,0];
+      function onFibre(f,i,s){
+        const a=i*.2+f*2.0944+s*.55,r=.62+.16*Math.sin(i*.045+f*1.7+s*.3);
+        const c=Math.cos(a)*r,d=Math.sin(a)*r,p=mid[i],n=frames.normals[i],b=frames.binormals[i];
+        wound[0]=p.x+n.x*c+b.x*d;wound[1]=p.y+n.y*c+b.y*d;wound[2]=p.z+n.z*c+b.z*d;
+      }
+      function windFibres(s){
+        for(let f=0;f<FIB;f++){
+          onFibre(f,0,s);
+          let x=wound[0],y=wound[1],z=wound[2];
+          for(let i=0;i<SAMPLES;i++){
+            onFibre(f,i+1,s);
+            const ix=(f*SAMPLES+i)*6;
+            fPos[ix]=x;fPos[ix+1]=y;fPos[ix+2]=z;
+            fPos[ix+3]=x=wound[0];fPos[ix+4]=y=wound[1];fPos[ix+5]=z=wound[2];
+          }
+        }
+        fAttr.needsUpdate=true;
+      }
+      windFibres(0);
+
+      /* myelin : faint sleeves of rings between the nodes of Ranvier */
+      const RN=26;
+      (function(){
+        const pts=[],cols=[],per=mobile?7:10,sleeves=mobile?4:6;
+        for(let n=0;n<RN;n++)for(let k=0;k<sleeves;k++){
+          const u=(n+.5+(k+1)/(sleeves+1))/RN;if(u>=1)continue;
+          const i=Math.min(SAMPLES,Math.round(u*SAMPLES)),p=mid[i],nn=frames.normals[i],bb=frames.binormals[i];
+          for(let q=0;q<per;q++){
+            const a=q/per*6.2832+k*.4,c=Math.cos(a)*.85,d=Math.sin(a)*.85;
+            pts.push(p.x+nn.x*c+bb.x*d,p.y+nn.y*c+bb.y*d,p.z+nn.z*c+bb.z*d);
+            t.copy(VIOLET).lerp(CYAN,u).multiplyScalar(.2+.14*Math.sin(a));
+            cols.push(t.r,t.g,t.b);
+          }
+        }
+        scene.add(buildPoints(new Float32Array(pts),new Float32Array(cols),.5,.9));
+      })();
+
+      /* node glow : each node of Ranvier flares as an impulse jumps through it */
+      const nodeU=[],nodePos=new Float32Array(RN*3),nodeCol=new Float32Array(RN*3);
+      for(let n=0;n<RN;n++){
+        const u=(n+.5)/RN,p=pathCurve.getPoint(u);nodeU.push(u);
+        nodePos[n*3]=p.x;nodePos[n*3+1]=p.y;nodePos[n*3+2]=p.z;
+      }
+      const nodeGlow=buildPoints(nodePos,nodeCol,3.4,1);
+      nodeGlow.frustumCulled=false;
+      scene.add(nodeGlow);
+
+      /* impulses : action potentials with a tail, racing down the axon */
+      const IMP=mobile?3:5,TAIL=7;
+      const imp=[],iPos=new Float32Array(IMP*TAIL*3),iCol=new Float32Array(IMP*TAIL*3);
+      for(let i=0;i<IMP;i++)imp.push({u:i/IMP,sp:R(.045,.075)});
+      for(let i=0;i<IMP*TAIL;i++){
+        const b=1-(i%TAIL)/TAIL;
+        iCol[i*3]=1.15*b*b;iCol[i*3+1]=1.1*b*b;iCol[i*3+2]=.55*b*b;
+      }
+      const impulses=buildPoints(iPos,iCol,1.7,1);
+      impulses.frustumCulled=false;
+      scene.add(impulses);
+
+      /* collaterals : a branch leaves the axon before each totem and ends in a spray of terminals around it */
+      const targets=[
+        {c:[mobile?0:29*XF,mobile?35:1,-15],tint:PINK},     /* brain */
+        {c:[mobile?0:21*XF,mobile?14:3,-78],tint:PINK},     /* neuron */
+        {c:[mobile?0:26*XF,mobile?15:1,-145],tint:CYAN},    /* headset */
+        {c:[mobile?0:14*XF,mobile?13:0,-215],tint:CYAN},    /* chip */
+        {c:[mobile?0:-2*XF,mobile?2:-11,-230],tint:VIOLET}, /* SHERPA ridge */
+        {c:[mobile?0:19*XF,mobile?15:6,-355],tint:YELL},    /* perceptron */
+        {c:[mobile?0:12*XF,mobile?13:-2,-405],tint:CYAN}    /* hybrid cortex */
+      ];
+      const TW=mobile?4:6,TRUNK=18,TWIG=12,RP=TRUNK+TWIG; /* points per route */
+      const cl=[],cc=[],bout=[],boutC=[];
+      const q2=(a,b,c,u)=>(1-u)*(1-u)*a+2*u*(1-u)*b+u*u*c;
+      targets.forEach(tg=>{
+        const c=tg.c;
+        /* leave the axon a little before the totem's depth */
+        let best=0,bd=1e9;
+        for(let i=0;i<=400;i++){const p=pathCurve.getPoint(i/400),d=Math.abs(p.z-(c[2]+12));if(d<bd){bd=d;best=i/400;}}
+        tg.u=best;
+        const p0=pathCurve.getPoint(best),o=[p0.x,p0.y,p0.z];
+        const hub=[o[0]+(c[0]-o[0])*.58,o[1]+(c[1]-o[1])*.58+R(-1,1),o[2]+(c[2]-o[2])*.58];
+        const bend=[o[0]+(hub[0]-o[0])*.45+R(-1.5,1.5),o[1]+(hub[1]-o[1])*.45+R(2,4.5)*(Math.random()<.5?1:-1),o[2]+(hub[2]-o[2])*.45+R(-2,2)];
+        tg.routes=[];
+        for(let w=0;w<TW;w++){
+          const th=R(0,6.2832),ny=R(-.8,.8),ring=Math.sqrt(1-ny*ny),rad=R(3.2,6.4);
+          const end=[c[0]+ring*Math.cos(th)*rad,c[1]+ny*rad,c[2]+ring*Math.sin(th)*rad];
+          const kink=[(hub[0]+end[0])/2+R(-1.6,1.6),(hub[1]+end[1])/2+R(-1.6,1.6),(hub[2]+end[2])/2+R(-1.6,1.6)];
+          const route=new Float32Array(RP*3);
+          for(let i=0;i<TRUNK;i++){const u=i/(TRUNK-1);for(let a=0;a<3;a++)route[i*3+a]=q2(o[a],bend[a],hub[a],u);}
+          for(let i=0;i<TWIG;i++){const u=(i+1)/TWIG;for(let a=0;a<3;a++)route[(TRUNK+i)*3+a]=q2(hub[a],kink[a],end[a],u);}
+          tg.routes.push(route);
+          /* draw the trunk once, every twig */
+          for(let i=(w===0?0:TRUNK-1);i<RP-1;i++){
+            cl.push(route[i*3],route[i*3+1],route[i*3+2],route[i*3+3],route[i*3+4],route[i*3+5]);
+            const m0=i/(RP-1),m1=(i+1)/(RP-1);
+            t.copy(VIOLET).lerp(tg.tint,m0).multiplyScalar(.75-.3*m0);cc.push(t.r,t.g,t.b);
+            t.copy(VIOLET).lerp(tg.tint,m1).multiplyScalar(.75-.3*m1);cc.push(t.r,t.g,t.b);
+          }
+          bout.push(end[0],end[1],end[2]);
+          t.copy(tg.tint).lerp(WHITE,.25);boutC.push(t.r,t.g,t.b);
+        }
+        tg.armed=true;
+      });
+      const collaterals=buildLines(new Float32Array(cl),new Float32Array(cc),.6);
+      add(collaterals,-210,330);cull[cull.length-1].noFx=true;
+      add(buildPoints(new Float32Array(bout),new Float32Array(boutC),1.2,.95),-210,330);cull[cull.length-1].noFx=true;
+
+      if(reduceMotion){axon={step(){}};return;}
+
+      const along=[0,0,0];
+      function onRoute(route,u){
+        const f=Math.min(RP-1.001,Math.max(0,u*(RP-1))),i=f|0,m=f-i;
+        along[0]=route[i*3]+(route[i*3+3]-route[i*3])*m;
+        along[1]=route[i*3+1]+(route[i*3+4]-route[i*3+1])*m;
+        along[2]=route[i*3+2]+(route[i*3+5]-route[i*3+2])*m;
+      }
+
+      /* the stream : building material flowing down every collateral into its totem;
+         it runs strongest at the totem you are standing in front of */
+      const SN=Math.floor(230*K)+90,per=Math.ceil(SN/targets.length);
+      const sPos=new Float32Array(SN*3),sCol=new Float32Array(SN*3),sU=new Float32Array(SN),sSp=new Float32Array(SN),
+            sOff=new Float32Array(SN*3),sR=new Uint8Array(SN),sK=new Uint8Array(SN);
+      for(let i=0;i<SN;i++){
+        sK[i]=Math.min(targets.length-1,(i/per)|0);sR[i]=(Math.random()*TW)|0;sU[i]=Math.random();sSp[i]=R(.16,.42);
+        sOff[i*3]=R(-.3,.3);sOff[i*3+1]=R(-.3,.3);sOff[i*3+2]=R(-.3,.3);sPos[i*3+1]=-9999;
+      }
+      const stream=buildPoints(sPos,sCol,.62,1);
+      stream.frustumCulled=false;scene.add(stream);
+      const sA=stream.geometry.attributes;
+
+      /* sparks : an impulse that turns off the axon and dives into a totem */
+      const SPK=mobile?10:22,ST=5,spark=[];
+      const kPos=new Float32Array(SPK*ST*3),kCol=new Float32Array(SPK*ST*3);
+      for(let i=0;i<SPK;i++)spark.push({on:false,k:0,r:0,u:0});
+      for(let i=0;i<SPK*ST;i++)kPos[i*3+1]=-9999;
+      const sparks=buildPoints(kPos,kCol,1.9,1);
+      sparks.frustumCulled=false;scene.add(sparks);
+      const kA=sparks.geometry.attributes;
+      function fire(k,r){
+        for(let i=0;i<SPK;i++)if(!spark[i].on){const s=spark[i];s.on=true;s.k=k;s.r=r;s.u=0;return;}
+      }
+
+      const act=new Float32Array(targets.length);
+      const nA=nodeGlow.geometry.attributes.color,iA=impulses.geometry.attributes.position;
+      axon={step(dt,s,camZ){
+        windFibres(s);
+        /* how close the camera is to each totem */
+        for(let k=0;k<targets.length;k++){
+          const tg=targets[k],a=Math.max(0,1-Math.abs((camZ-46)-tg.c[2])/105);
+          act[k]=a;
+          /* arriving at a totem sets off a volley down all of its terminals */
+          if(a>.62&&tg.armed){tg.armed=false;for(let w=0;w<TW;w++)fire(k,w);}
+          else if(a<.2)tg.armed=true;
+        }
+        /* impulses on the axon; passing a branch point sends a spark down the collateral */
+        nodeCol.fill(0);
+        for(let i=0;i<IMP;i++){
+          const q=imp[i],u0=q.u;
+          q.u+=q.sp*dt;
+          for(let k=0;k<targets.length;k++)
+            if(u0<targets[k].u&&q.u>=targets[k].u&&act[k]>.05)fire(k,(Math.random()*TW)|0);
+          if(q.u>1)q.u-=1;
+          for(let j=0;j<TAIL;j++){
+            const p=pathCurve.getPoint(Math.max(0,q.u-j*.0035)),ix=(i*TAIL+j)*3;
+            iPos[ix]=p.x;iPos[ix+1]=p.y;iPos[ix+2]=p.z;
+          }
+          for(let n=0;n<RN;n++){
+            const d=(nodeU[n]-q.u)/.014,g=Math.exp(-d*d);
+            if(g>.01){nodeCol[n*3]+=1.1*g;nodeCol[n*3+1]+=1.02*g;nodeCol[n*3+2]+=.5*g;}
+          }
+        }
+        iA.needsUpdate=true;nA.needsUpdate=true;
+        /* the stream */
+        for(let i=0;i<SN;i++){
+          const k=sK[i],a=act[k];
+          if(a<.02){sPos[i*3+1]=-9999;continue;}
+          const tg=targets[k];
+          sU[i]+=sSp[i]*dt*(.3+.9*a);
+          if(sU[i]>1){
+            sU[i]=0;sR[i]=(Math.random()*TW)|0;
+            if(vesicles&&a>.35&&Math.random()<.18){
+              const rt=tg.routes[sR[i]];
+              vesicles.emit(rt[(RP-1)*3],rt[(RP-1)*3+1],rt[(RP-1)*3+2],tg.tint,3,1.2);
+            }
+          }
+          const u=sU[i];onRoute(tg.routes[sR[i]],u);
+          const wob=Math.sin(s*2.2+i)*(.4+.6*u);
+          sPos[i*3]=along[0]+sOff[i*3]*wob;sPos[i*3+1]=along[1]+sOff[i*3+1]*wob;sPos[i*3+2]=along[2]+sOff[i*3+2]*wob;
+          const b=a*Math.sqrt(Math.sin(Math.PI*u))*(.55+.45*Math.sin(s*3+i*1.7));
+          sCol[i*3]=(tg.tint.r*.7+.3)*b;sCol[i*3+1]=(tg.tint.g*.7+.3)*b;sCol[i*3+2]=(tg.tint.b*.7+.3)*b;
+        }
+        sA.position.needsUpdate=true;sA.color.needsUpdate=true;
+        /* sparks */
+        for(let i=0;i<SPK;i++){
+          const sp=spark[i],base=i*ST;
+          if(!sp.on){for(let j=0;j<ST;j++)kPos[(base+j)*3+1]=-9999;continue;}
+          const tg=targets[sp.k],rt=tg.routes[sp.r];
+          sp.u+=dt*.95;
+          if(sp.u>=1){
+            sp.on=false;
+            if(vesicles)vesicles.emit(rt[(RP-1)*3],rt[(RP-1)*3+1],rt[(RP-1)*3+2],tg.tint,mobile?9:16,3.2);
+            continue;
+          }
+          for(let j=0;j<ST;j++){
+            onRoute(rt,Math.max(0,sp.u-j*.03));
+            const ix=(base+j)*3,b=1-j/ST;
+            kPos[ix]=along[0];kPos[ix+1]=along[1];kPos[ix+2]=along[2];
+            kCol[ix]=1.2*b*b;kCol[ix+1]=1.15*b*b;kCol[ix+2]=.6*b*b;
+          }
+        }
+        kA.position.needsUpdate=true;kA.color.needsUpdate=true;
+      }};
+    })();
+
+    three={renderer,scene,camera,cull,pulses,vesicles,motes,axon,wave,helixObj,galaxyObj,portalObj,hmd,brain,sherpa,seam,neuronMat,neuronBoost:0,ripple:null,scanTime,
       dpr:Math.min(devicePixelRatio,2),frameAvg:16.7,dprAt:0,
       chipDieMat,pathCurve,guideAttr,pathPulses,
       mouse:{x:0,y:0},camZ:startZ,time:0,fov:62};
@@ -2588,6 +2823,7 @@ function frame(now){
     if(!reduceMotion){
       if(t.vesicles)t.vesicles.step(dt);
       if(t.motes)t.motes.step(now*.001);
+      if(t.axon)t.axon.step(dt,now*.001,t.camZ);
     }
 
     /* EEG ocean rolls */
