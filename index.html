@@ -1223,7 +1223,7 @@ window.addEventListener("resize",measureCameraStops);
   if(typeof THREE==="undefined")return;
   try{
     const mobile=innerWidth<760;
-    const K=mobile?0.45:1; /* particle budget */
+    const K=mobile?0.5:1.6; /* particle budget */
     const canvas=document.getElementById("stage");
     const renderer=new THREE.WebGLRenderer({canvas,antialias:!mobile,alpha:true});
     renderer.setPixelRatio(Math.min(devicePixelRatio,2));
@@ -1283,7 +1283,7 @@ window.addEventListener("resize",measureCameraStops);
       return new THREE.LineSegments(g,lineMat(op));
     }
     function dottedTraces(endpoints,colors,size,opacity){
-      const positions=[],shades=[],spacing=mobile ? .77 : .54;
+      const positions=[],shades=[],spacing=mobile ? .77 : .42;
       for(let i=0;i<endpoints.length;i+=6){
         const dx=endpoints[i+3]-endpoints[i],dy=endpoints[i+4]-endpoints[i+1],dz=endpoints[i+5]-endpoints[i+2];
         const steps=Math.max(1,Math.ceil(Math.hypot(dx,dy,dz)/spacing));
@@ -2339,7 +2339,90 @@ window.addEventListener("resize",measureCameraStops);
       scene.add(buildPoints(new Float32Array(tips),new Float32Array(tipCols),1.5,1));
     })();
 
-    three={renderer,scene,camera,cull,pulses,wave,helixObj,galaxyObj,portalObj,hmd,brain,sherpa,seam,neuronMat,neuronBoost:0,ripple:null,scanTime,
+    /* ---------- vesicles : a puff of transmitter where a signal arrives ---------- */
+    let vesicles=null;
+    (function(){
+      if(reduceMotion)return;
+      const n=Math.floor(420*K)+180,pos=new Float32Array(n*3),col=new Float32Array(n*3);
+      const vel=new Float32Array(n*3),life=new Float32Array(n),span=new Float32Array(n),tint=new Float32Array(n*3);
+      for(let i=0;i<n;i++)pos[i*3+1]=-9999;
+      const obj=buildPoints(pos,col,.5,1);
+      obj.frustumCulled=false;
+      scene.add(obj);
+      let next=0;
+      const P=obj.geometry.attributes.position,C=obj.geometry.attributes.color;
+      vesicles={
+        emit(x,y,z,color,count,speed){
+          for(let k=0;k<count;k++){
+            const i=next;next=(next+1)%n;
+            const th=R(0,6.283),ny=R(-1,1),ring=Math.sqrt(1-ny*ny),sp=R(.25,1)*speed;
+            pos[i*3]=x;pos[i*3+1]=y;pos[i*3+2]=z;
+            vel[i*3]=ring*Math.cos(th)*sp;vel[i*3+1]=ny*sp;vel[i*3+2]=ring*Math.sin(th)*sp;
+            span[i]=life[i]=R(1.1,2.4);
+            tint[i*3]=color.r;tint[i*3+1]=color.g;tint[i*3+2]=color.b;
+          }
+        },
+        step(dt){
+          const drag=Math.pow(.2,dt);
+          for(let i=0;i<n;i++){
+            if(life[i]<=0)continue;
+            life[i]-=dt;
+            if(life[i]<=0){pos[i*3+1]=-9999;col[i*3]=col[i*3+1]=col[i*3+2]=0;continue;}
+            vel[i*3]*=drag;vel[i*3+1]*=drag;vel[i*3+2]*=drag;
+            pos[i*3]+=vel[i*3]*dt;pos[i*3+1]+=(vel[i*3+1]+.15)*dt;pos[i*3+2]+=vel[i*3+2]*dt;
+            const k=life[i]/span[i],b=Math.min(1,k*1.6);
+            col[i*3]=tint[i*3]*b;col[i*3+1]=tint[i*3+1]*b;col[i*3+2]=tint[i*3+2]*b;
+          }
+          P.needsUpdate=true;C.needsUpdate=true;
+        }
+      };
+    })();
+
+    /* ---------- motes : slow, twinkling particles afloat around the totems ---------- */
+    let motes=null;
+    (function(){
+      const centres=[
+        [mobile?0:29*XF,mobile?35:1,-15],    /* brain */
+        [mobile?0:26*XF,mobile?15:1,-145],   /* headset */
+        [mobile?0:21*XF,mobile?14:3,-78],    /* neuron */
+        [mobile?0:14*XF,mobile?13:0,-215],   /* chip */
+        [mobile?0:-2*XF,mobile?2:-11,-230],  /* SHERPA ridge */
+        [mobile?0:19*XF,mobile?15:6,-355],   /* perceptron */
+        [mobile?0:12*XF,mobile?13:-2,-405]   /* hybrid cortex */
+      ];
+      const per=Math.floor(150*K)+50,n=per*centres.length;
+      const pos=new Float32Array(n*3),col=new Float32Array(n*3),base=new Float32Array(n*3),
+            tint=new Float32Array(n*3),phase=new Float32Array(n),t=new THREE.Color();
+      centres.forEach((c,ci)=>{
+        for(let j=0;j<per;j++){
+          const i=ci*per+j,th=R(0,6.283),ph=Math.acos(R(-1,1)),r=R(5,mobile?11:17);
+          pos[i*3]=base[i*3]=c[0]+r*Math.sin(ph)*Math.cos(th);
+          pos[i*3+1]=base[i*3+1]=c[1]+r*Math.cos(ph)*.8;
+          pos[i*3+2]=base[i*3+2]=c[2]+r*Math.sin(ph)*Math.sin(th);
+          phase[i]=R(0,6.283);
+          const pick=Math.random();
+          t.copy(pick<.45?CYAN:pick<.8?VIOLET:pick<.94?PINK:YELL).multiplyScalar(R(.22,.7));
+          col[i*3]=tint[i*3]=t.r;col[i*3+1]=tint[i*3+1]=t.g;col[i*3+2]=tint[i*3+2]=t.b;
+        }
+      });
+      const obj=buildPoints(pos,col,.42,.85);
+      add(obj,-240,330);
+      cull[cull.length-1].noFx=true;
+      const P=obj.geometry.attributes.position,C=obj.geometry.attributes.color;
+      motes={step(s){
+        for(let i=0;i<n;i++){
+          const p=phase[i];
+          pos[i*3]=base[i*3]+Math.sin(s*.23+p)*1.4;
+          pos[i*3+1]=base[i*3+1]+Math.cos(s*.19+p*1.7)*1.1;
+          pos[i*3+2]=base[i*3+2]+Math.sin(s*.17+p*.6)*1.4;
+          const tw=.5+.5*Math.sin(s*1.1+p*3);
+          col[i*3]=tint[i*3]*tw;col[i*3+1]=tint[i*3+1]*tw;col[i*3+2]=tint[i*3+2]*tw;
+        }
+        P.needsUpdate=true;C.needsUpdate=true;
+      }};
+    })();
+
+    three={renderer,scene,camera,cull,pulses,vesicles,motes,wave,helixObj,galaxyObj,portalObj,hmd,brain,sherpa,seam,neuronMat,neuronBoost:0,ripple:null,scanTime,
       dpr:Math.min(devicePixelRatio,2),frameAvg:16.7,dprAt:0,
       chipDieMat,pathCurve,guideAttr,pathPulses,
       mouse:{x:0,y:0},camZ:startZ,time:0,fov:62};
@@ -2489,12 +2572,22 @@ function frame(now){
       const firing=1+3.5*t.neuronBoost;
       if(t.neuronMat)t.neuronMat.size=t.neuronMat.userData.size*(1+.3*t.neuronBoost);
       for(let i=0;i<L.length;i++){
-        const q=L[i];q.t+=q.sp*dt*60*(q.neuron?firing:1);if(q.t>1)q.t=0;
+        const q=L[i];q.t+=q.sp*dt*60*(q.neuron?firing:1);
+        if(q.t>1){
+          q.t=0;
+          /* near the camera, an arriving signal releases a little transmitter */
+          if(t.vesicles&&Math.abs(q.b[2]-(t.camZ-45))<110&&Math.random()<(q.neuron?.3:.12))
+            t.vesicles.emit(q.b[0],q.b[1],q.b[2],q.c,q.neuron?5:3,q.neuron?2.2:1.4);
+        }
         arr[i*3]  =q.a[0]+(q.b[0]-q.a[0])*q.t;
         arr[i*3+1]=q.a[1]+(q.b[1]-q.a[1])*q.t;
         arr[i*3+2]=q.a[2]+(q.b[2]-q.a[2])*q.t;
       }
       t.pulses.attr.needsUpdate=true;
+    }
+    if(!reduceMotion){
+      if(t.vesicles)t.vesicles.step(dt);
+      if(t.motes)t.motes.step(now*.001);
     }
 
     /* EEG ocean rolls */
