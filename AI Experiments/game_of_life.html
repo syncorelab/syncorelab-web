@@ -31,6 +31,11 @@
   <span class="shell-context">AI Experiment · PSY3230</span>
   <nav class="shell-nav" aria-label="Experiment navigation"><a href="../index.html?skipIntro=1#experiments">&larr; Back to website</a><a href="../index.html?skipIntro=1#contact">Contact</a></nav>
 </header>
+<div class="life-intro" id="intro">
+  <h1>Game of Life</h1>
+  <div class="sub">John Conway, 1970 — four rules about neighbours, and nothing else. Gliders, guns and
+    oscillators appear anyway. Drop in a pattern or fill the board at random, then press Start.</div>
+</div>
 <div id="bar" tabindex="-1">
   <button id="start">Start</button>
   <button id="random">Random fill</button>
@@ -99,7 +104,7 @@ function allocate(size) {
 
 function fitCanvas() {
   const headerHeight = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--shell-h")) || 0;
-  const controlsHeight = document.getElementById("bar").offsetHeight;
+  const controlsHeight = document.getElementById("bar").offsetHeight + document.getElementById("intro").offsetHeight;
   const side = Math.max(160, Math.min(window.innerWidth - 16, window.innerHeight - headerHeight - controlsHeight - 16));
   canvas.width = side; canvas.height = side;
   ctx.imageSmoothingEnabled = false;
