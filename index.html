@@ -1301,44 +1301,74 @@ window.addEventListener("resize",measureCameraStops);
     const cull=[]; /* {obj,zc,range} — hide far-away layers */
     function add(obj,zc,range){scene.add(obj);cull.push({obj,zc,range:range||220});return obj}
 
+    /* a totem is not simply there: its particles leave the axon a little upstream, stream out
+       to their places while you approach, and flow back into the axon downstream as you move on */
     function scrollSpecimen(group,depth,stops){
       add(group,depth,210);
       if(reduceMotion)return;
-      const phase={value:0};
-      cull[cull.length-1].formation={phase,stops};
+      const phase={value:0},items=[],inverse=new THREE.Matrix4();
+      const formation={phase,stops,source:null,
+        // The axon is fixed in the world; every cloud needs it in its own (possibly turning) frame.
+        update(){
+          if(!formation.source)return;
+          for(const item of items){
+            item.points.updateWorldMatrix(true,false);
+            inverse.copy(item.points.matrixWorld).invert();
+            item.from.value.copy(formation.source.from).applyMatrix4(inverse);
+            item.to.value.copy(formation.source.to).applyMatrix4(inverse);
+            item.along.value.copy(formation.source.along).transformDirection(inverse);
+          }
+        }};
+      cull[cull.length-1].formation=formation;
       group.traverse(points=>{
         if(!points.isPoints)return;
         const geometry=points.geometry,position=geometry.attributes.position;
         const flight=new Float32Array(position.count*4);
         // Per-point trajectories are fixed at creation, so reversing scroll retraces them.
         for(let i=0;i<position.count;i++){
-          const x=position.getX(i),y=position.getY(i),z=position.getZ(i);
+          const x=position.getX(i),y=position.getY(i);
           const angle=Math.atan2(y,x)+R(-.8,.8),radius=R(7,20);
           flight.set([radius*Math.cos(angle),radius*Math.sin(angle),R(-14,14),
-            THREE.MathUtils.clamp(.5+x*.018+y*.009+R(-.22,.22),0,1)],4*i);
+            THREE.MathUtils.clamp(.5+R(-.5,.5),0,1)],4*i);
         }
         geometry.setAttribute("particleFlight",new THREE.BufferAttribute(flight,4));
-        geometry.computeBoundingSphere();
-        geometry.boundingSphere.radius+=36;
+        points.frustumCulled=false; /* in flight the cloud reaches all the way to the axon */
+        const item={points,from:{value:new THREE.Vector3()},to:{value:new THREE.Vector3()},along:{value:new THREE.Vector3(0,0,-1)}};
+        items.push(item);
         const material=points.material,compile=material.onBeforeCompile;
         const priorKey=material.customProgramCacheKey();
-        material.customProgramCacheKey=()=>priorKey+"-scroll-particles";
+        material.customProgramCacheKey=()=>priorKey+"-axon-stream";
         material.onBeforeCompile=shader=>{
           compile(shader);
           shader.uniforms.formationPhase=phase;
-          shader.vertexShader="uniform float formationPhase; attribute vec4 particleFlight;\n"+shader.vertexShader
+          shader.uniforms.axonFrom=item.from;
+          shader.uniforms.axonTo=item.to;
+          shader.uniforms.axonAlong=item.along;
+          shader.vertexShader="uniform float formationPhase; uniform vec3 axonFrom; uniform vec3 axonTo; uniform vec3 axonAlong; attribute vec4 particleFlight;\n"+shader.vertexShader
             .replace("#include <begin_vertex>",`#include <begin_vertex>
               float order=particleFlight.w;
               // Each particle flies for 60% of the phase on a quintic ease, staggered by its order.
               float arrive=clamp((formationPhase-.40*order)/.60,0.0,1.0);
               float depart=clamp((formationPhase-1.0-.40*(1.0-order))/.60,0.0,1.0);
-              float gathering=1.0-arrive*arrive*arrive*(arrive*(arrive*6.0-15.0)+10.0);
-              float shedding=depart*depart*depart*(depart*(depart*6.0-15.0)+10.0);
+              float inbound=arrive*arrive*arrive*(arrive*(arrive*6.0-15.0)+10.0);
+              float outbound=depart*depart*depart*(depart*(depart*6.0-15.0)+10.0);
               vec3 flight=particleFlight.xyz;
-              transformed+=gathering*flight + shedding*vec3(-flight.y,flight.x+5.0,-flight.z);
-              transformed.xy+=vec2(-flight.y,flight.x)*.28*sin(3.14159*(gathering+shedding));`)
-            .replace("#include <project_vertex>",`vColor*=mix(1.0,.13,gathering+shedding)
-                *(1.0-smoothstep(1.75,2.0,formationPhase));
+              vec3 swirl=vec3(-flight.y,flight.x,-flight.z);
+              vec3 home=transformed;
+              // out of the axon: strung along the fibre, then bowing outward to its place
+              vec3 source=axonFrom+axonAlong*flight.z*.9+flight*.05;
+              vec3 bowIn=mix(source,home,.5)+flight*.38;
+              vec3 flyIn=mix(mix(source,bowIn,inbound),mix(bowIn,home,inbound),inbound);
+              // and back into it further down, on a different arc
+              vec3 sink=axonTo+axonAlong*flight.z*.9+swirl*.05;
+              vec3 bowOut=mix(home,sink,.5)+swirl*.38;
+              vec3 flyOut=mix(mix(home,bowOut,outbound),mix(bowOut,sink,outbound),outbound);
+              transformed=flyIn+(flyOut-home);
+              float airborne=min(1.0,sin(3.14159*inbound)+sin(3.14159*outbound));`)
+            .replace("#include <project_vertex>",`// material glows up as it leaves the fibre and dims again before it sinks back in,
+              // so the axon never clots into one bright knot
+              vColor*=mix(1.0,.5,airborne)
+                *smoothstep(0.0,.4,arrive)*(1.0-smoothstep(.5,.97,depart));
               #include <project_vertex>`);
         };
       });
@@ -1818,7 +1848,9 @@ window.addEventListener("resize",measureCameraStops);
           cols.push(t.r,t.g,t.b);
         }
       }
-      parts.push(add(buildPoints(new Float32Array(pts),new Float32Array(cols),0.85,1),Z0,190));
+      const chip=new THREE.Group();
+      const part=o=>{chip.add(o);parts.push(o);return o;};
+      part(buildPoints(new Float32Array(pts),new Float32Array(cols),0.85,1));
       /* the die — bright pulsing core, its own material */
       const dPts=[],dCols=[];
       const nD=Math.floor(750*K)+200;
@@ -1832,7 +1864,7 @@ window.addEventListener("resize",measureCameraStops);
       }
       const die=buildPoints(new Float32Array(dPts),new Float32Array(dCols),.48,1);
       chipDieMat=die.material;
-      parts.push(add(die,Z0,190));
+      part(die);
       /* circuit traces — die to pins, manhattan style; pulses ride these */
       const ls=[],lc=[];
       for(let e=0;e<4;e++)for(let p2=0;p2<PINS;p2++){
@@ -1846,7 +1878,8 @@ window.addEventListener("resize",measureCameraStops);
         lc.push(0,.55,.47,0,.55,.47,0,.55,.47,0,.3,.26);
         chipTraces.push([a,m],[m,b2]);
       }
-      parts.push(add(dottedTraces(ls,lc,.67,.92),Z0,190));
+      part(dottedTraces(ls,lc,.67,.92));
+      scrollSpecimen(chip,Z0,[-116,-148,-176,-204]);
       if(mobile){ /* shrink about the chip's centre and lift it onto the stage above the text */
         const k=.5,lift=19,moved=new Set();
         for(const part of parts){part.scale.setScalar(k);part.position.set(X0*(1-k),lift,Z0*(1-k));}
@@ -1995,7 +2028,8 @@ window.addEventListener("resize",measureCameraStops);
           }
         });
       });
-      add(buildPoints(new Float32Array(pts),new Float32Array(cols),.62,1),Z0,170);
+      const net=new THREE.Group();
+      net.add(buildPoints(new Float32Array(pts),new Float32Array(cols),.62,1));
       /* weights — every node to every node of the next layer */
       const ls=[],lc=[];
       for(let li=0;li<nodes.length-1;li++){
@@ -2008,7 +2042,8 @@ window.addEventListener("resize",measureCameraStops);
           if(w2>.45)netEdges.push([a,b]); /* strong weights carry signals */
         }
       }
-      add(dottedTraces(ls,lc,.67,.78),Z0,170);
+      net.add(dottedTraces(ls,lc,.67,.78));
+      scrollSpecimen(net,Z0,[-258,-290,-318,-344]);
     })();
 
     /* ---------- the hybrid cortex : bridge totem (z ≈ -405) ---------- */
@@ -2093,7 +2128,7 @@ window.addEventListener("resize",measureCameraStops);
       hybrid.rotation.set(.42,Math.PI/2+.34,0);
       hybrid.position.set(mobile?0:12*XF,mobile?13:-2,Z0); /* seventh totem: right, clear of the text */
       hybrid.scale.setScalar(mobile ? .62 : 1.12);
-      add(hybrid,Z0,190);
+      scrollSpecimen(hybrid,Z0,[-310,-340,-368,-396]);
     })();
 
     /* ---------- pulses : thoughts travelling the wires ---------- */
@@ -2378,6 +2413,20 @@ window.addEventListener("resize",measureCameraStops);
       };
     })();
 
+    /* every forming totem learns where the axon passes it: material leaves the fibre a little
+       before the totem and rejoins it a little after */
+    if(pathCurve){
+      const nearest=z=>{let best=0,gap=1e9;
+        for(let i=0;i<=400;i++){const d=Math.abs(pathCurve.getPoint(i/400).z-z);if(d<gap){gap=d;best=i/400;}}
+        return best;};
+      for(const c of cull){
+        if(!c.formation)continue;
+        const uFrom=nearest(c.zc+18),uTo=nearest(c.zc-24);
+        c.formation.source={from:pathCurve.getPoint(uFrom),to:pathCurve.getPoint(uTo),
+          along:pathCurve.getTangent(uFrom).normalize()};
+      }
+    }
+
     /* ---------- motes : slow, twinkling particles afloat around the totems ---------- */
     let motes=null;
     (function(){
@@ -2390,7 +2439,7 @@ window.addEventListener("resize",measureCameraStops);
         [mobile?0:19*XF,mobile?15:6,-355],   /* perceptron */
         [mobile?0:12*XF,mobile?13:-2,-405]   /* hybrid cortex */
       ];
-      const per=Math.floor(150*K)+50,n=per*centres.length;
+      const per=Math.floor((mobile?150:250)*K)+50,n=per*centres.length;
       const pos=new Float32Array(n*3),col=new Float32Array(n*3),base=new Float32Array(n*3),
             tint=new Float32Array(n*3),phase=new Float32Array(n),t=new THREE.Color();
       centres.forEach((c,ci)=>{
@@ -2420,6 +2469,51 @@ window.addEventListener("resize",measureCameraStops);
         }
         P.needsUpdate=true;C.needsUpdate=true;
       }};
+    })();
+
+    /* ---------- transmitters : vesicles adrift in the whole space around the axon —
+       small clusters that tumble, drift and glimmer; animated entirely on the GPU ---------- */
+    let transmitters=null;
+    (function(){
+      if(!pathCurve||reduceMotion)return;
+      const clusters=mobile?90:Math.floor(300*K),pts=[],cols=[],drift=[],t=new THREE.Color();
+      for(let c=0;c<clusters;c++){
+        const centre=pathCurve.getPoint(Math.random()),th=R(0,6.2832),rad=R(3.5,mobile?16:30);
+        centre.x+=Math.cos(th)*rad;centre.y+=Math.sin(th)*rad*.62;centre.z+=R(-9,9);
+        const pick=Math.random(),tint=pick<.4?CYAN:pick<.72?VIOLET:pick<.9?PINK:YELL;
+        const phase=R(0,6.2832),speed=R(.5,1.3),spread=R(.25,.95);
+        /* a vesicle releases a handful of molecules that stay loosely together */
+        for(let m=0,size=3+((Math.random()*6)|0);m<size;m++){
+          pts.push(centre.x+R(-1,1)*spread,centre.y+R(-1,1)*spread,centre.z+R(-1,1)*spread);
+          t.copy(tint).lerp(WHITE,R(0,.3)).multiplyScalar(R(.3,.85));
+          cols.push(t.r,t.g,t.b);
+          drift.push(phase,speed,R(0,6.2832),m===0?R(1.5,2.3):R(.55,1.15));
+        }
+      }
+      const obj=buildPoints(new Float32Array(pts),new Float32Array(cols),.5,.9);
+      obj.geometry.setAttribute("drift",new THREE.BufferAttribute(new Float32Array(drift),4));
+      obj.frustumCulled=false;
+      const clock={value:0},material=obj.material,compile=material.onBeforeCompile;
+      const priorKey=material.customProgramCacheKey();
+      material.customProgramCacheKey=()=>priorKey+"-transmitters";
+      material.onBeforeCompile=shader=>{
+        compile(shader);
+        shader.uniforms.driftTime=clock;
+        shader.vertexShader="uniform float driftTime; attribute vec4 drift;\n"+shader.vertexShader
+          .replace("#include <begin_vertex>",`#include <begin_vertex>
+            float tc=driftTime*drift.y;
+            // the cluster wanders as one…
+            transformed+=vec3(sin(tc*.21+drift.x)*2.6+sin(tc*.07+drift.x*2.3)*1.4,
+                              cos(tc*.17+drift.x*1.7)*2.1+sin(tc*.05+drift.x)*1.6,
+                              sin(tc*.13+drift.x*.6)*2.4);
+            // …while each molecule jitters on its own
+            transformed+=vec3(sin(tc*1.9+drift.z),cos(tc*1.6+drift.z*1.3),sin(tc*1.3+drift.z*2.1))*.22;`)
+          .replace("#include <project_vertex>",`vColor*=.55+.45*sin(driftTime*(.8+drift.y)+drift.z*3.0);
+            #include <project_vertex>`)
+          .replace("gl_PointSize=min(gl_PointSize,14.0);","gl_PointSize=min(gl_PointSize*drift.w,14.0);");
+      };
+      scene.add(obj);
+      transmitters={step(s){clock.value=s;}};
     })();
 
     /* ---------- the axon comes alive : twisting fibres, myelin, saltatory impulses,
@@ -2562,7 +2656,7 @@ window.addEventListener("resize",measureCameraStops);
 
       /* the stream : building material flowing down every collateral into its totem;
          it runs strongest at the totem you are standing in front of */
-      const SN=Math.floor(230*K)+90,per=Math.ceil(SN/targets.length);
+      const SN=Math.floor((mobile?230:400)*K)+90,per=Math.ceil(SN/targets.length);
       const sPos=new Float32Array(SN*3),sCol=new Float32Array(SN*3),sU=new Float32Array(SN),sSp=new Float32Array(SN),
             sOff=new Float32Array(SN*3),sR=new Uint8Array(SN),sK=new Uint8Array(SN);
       for(let i=0;i<SN;i++){
@@ -2657,7 +2751,7 @@ window.addEventListener("resize",measureCameraStops);
       }};
     })();
 
-    three={renderer,scene,camera,cull,pulses,vesicles,motes,axon,wave,helixObj,galaxyObj,portalObj,hmd,brain,sherpa,seam,neuronMat,neuronBoost:0,ripple:null,scanTime,
+    three={renderer,scene,camera,cull,pulses,vesicles,motes,transmitters,axon,wave,helixObj,galaxyObj,portalObj,hmd,brain,sherpa,seam,neuronMat,neuronBoost:0,ripple:null,scanTime,
       dpr:Math.min(devicePixelRatio,2),frameAvg:16.7,dprAt:0,
       chipDieMat,pathCurve,guideAttr,pathPulses,
       mouse:{x:0,y:0},camZ:startZ,time:0,fov:62};
@@ -2823,6 +2917,7 @@ function frame(now){
     if(!reduceMotion){
       if(t.vesicles)t.vesicles.step(dt);
       if(t.motes)t.motes.step(now*.001);
+      if(t.transmitters)t.transmitters.step(now*.001);
       if(t.axon)t.axon.step(dt,now*.001,t.camZ);
     }
 
@@ -2899,6 +2994,7 @@ function frame(now){
           :damp(phase.value,goal,c.formation.entrance?.75:1.6,dt);
         if(c.formation.entrance&&phase.value>.97)c.formation.entrance=false;
         c.obj.visible=phase.value>0&&phase.value<2;
+        if(c.obj.visible)c.formation.update();
         continue;
       }
       const distance=Math.abs(t.camZ-c.zc);
