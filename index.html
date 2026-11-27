@@ -1305,7 +1305,7 @@ window.addEventListener("resize",measureCameraStops);
        to their places while you approach, and flow back into the axon downstream as you move on */
     function scrollSpecimen(group,depth,stops){
       add(group,depth,210);
-      if(reduceMotion)return;
+      if(reduceMotion)return group;
       const phase={value:0},items=[],inverse=new THREE.Matrix4();
       const formation={phase,stops,source:null,
         // The axon is fixed in the world; every cloud needs it in its own (possibly turning) frame.
@@ -1372,6 +1372,7 @@ window.addEventListener("resize",measureCameraStops);
               #include <project_vertex>`);
         };
       });
+      return group;
     }
 
     /* ---------- dust : sparse, kept OUT of the center so totems own the stage ---------- */
@@ -1684,7 +1685,7 @@ window.addEventListener("resize",measureCameraStops);
       cell.scale.setScalar(mobile ? .62 : 1.25);
       cell.rotation.set(.06,-.35,.14);
       cell.position.set(mobile?0:21*XF,mobile?14:3,-78); /* second totem: right, clear of the text column */
-      add(cell,-78,170);
+      scrollSpecimen(cell,-78,[24,-4,-50,-78]);
       cell.updateMatrixWorld(true);
       for(const [a,b] of paths)neuronSegs.push([
         a.clone().applyMatrix4(cell.matrixWorld).toArray(),b.clone().applyMatrix4(cell.matrixWorld).toArray()]);
@@ -2211,7 +2212,7 @@ window.addEventListener("resize",measureCameraStops);
       helix.position.set(mobile?0:14*XF,mobile?14:0,-490);
       if(mobile)helix.scale.setScalar(.6);
       helix.rotation.set(.24,.32,-.37);
-      helixObj=add(helix,-490,210);
+      helixObj=scrollSpecimen(helix,-490,[-386,-422,-466,-487]);
     })();
 
     /* ---------- echo galaxy : fly through the disk (z ≈ -570) ---------- */
@@ -2244,7 +2245,7 @@ window.addEventListener("resize",measureCameraStops);
       galaxyObj.add(disk);
       galaxyObj.position.z=-570;
       galaxyObj.rotation.set(.52,-.18,-.22);
-      add(galaxyObj,-570,230);
+      scrollSpecimen(galaxyObj,-570,[-466,-502,-538,-564]);
     })();
 
     /* ---------- exit portal : an aperture and the tunnel behind it (z -660) ---------- */
