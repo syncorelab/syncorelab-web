@@ -1,3 +1,5 @@
+@import url("../assets/fonts/local.css");
+
 :root {
   --shell-bg: #08080d;
   --shell-panel: rgba(16, 16, 25, .9);
@@ -182,12 +184,203 @@ body.game-life-page #wrap {
   .shell-context { display: none; }
   .shell-nav a:last-child { display: none; }
   .experiment-shell { gap: .55rem; }
-  .shell-brand { font-size: 11px; }
-  .shell-nav a { font-size: 11px; padding: .38rem .62rem; }
-  body.experiment-page .cols > div { min-width: 0 !important; width: 100%; }
+  .shell-brand { font-size: 12px; letter-spacing: .14em; }
+  .shell-nav a { font-size: 12px; padding: .38rem .62rem; }
+  body.experiment-page .cols > div { min-width: 0 !important; width: 100%; flex: 1 1 100% !important; box-sizing: border-box; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .experiment-shell *,
   .experiment-skip { transition: none !important; }
+}
+
+/* ---------- one visual language with the main site ----------
+   Each experiment keeps its own layout; type, colour and controls follow the lab's. */
+.shell-brand,
+.shell-context,
+.shell-nav a,
+.experiment-skip {
+  font-family: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+
+body.experiment-page {
+  color: var(--shell-ink);
+  font-family: "Space Grotesk", -apple-system, "Segoe UI", sans-serif;
+  font-size: 16px;
+  font-weight: 300;
+  -webkit-font-smoothing: antialiased;
+}
+
+body.experiment-page #app {
+  max-width: 1120px;
+  padding: clamp(1.4rem, 3.5vw, 2.6rem) clamp(.9rem, 3vw, 2rem) 4rem;
+}
+
+body.experiment-page h1 {
+  margin: .2rem 0 .7rem;
+  font-family: "Fraunces", Georgia, serif;
+  font-size: clamp(2rem, 4.4vw, 3.2rem);
+  font-weight: 400;
+  letter-spacing: -.01em;
+  line-height: 1.06;
+}
+
+body.experiment-page h1::before {
+  content: "// experiment";
+  display: block;
+  margin-bottom: .9rem;
+  color: var(--shell-yellow);
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: .75rem;
+  letter-spacing: .3em;
+  text-transform: uppercase;
+}
+
+body.experiment-page .sub {
+  max-width: 68ch;
+  margin-bottom: 1.4rem;
+  color: rgba(236, 235, 228, .8);
+  font-size: 1.02rem;
+  line-height: 1.6;
+}
+
+body.experiment-page h2 {
+  margin: 1.4rem 0 .6rem;
+  color: var(--shell-cyan);
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: .75rem;
+  font-weight: 400;
+  letter-spacing: .2em;
+  line-height: 1.5;
+  text-transform: uppercase;
+}
+
+body.experiment-page details {
+  border-radius: 4px;
+  font-size: .95rem;
+  line-height: 1.6;
+}
+
+body.experiment-page details p,
+body.experiment-page details li {
+  color: rgba(236, 235, 228, .82);
+}
+
+body.experiment-page summary {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: .8rem;
+  font-weight: 400;
+  letter-spacing: .12em;
+  line-height: 36px;
+  text-transform: uppercase;
+}
+
+body.experiment-page .note,
+body.experiment-page .legend,
+body.experiment-page .val,
+body.experiment-page .field,
+body.experiment-page label,
+body.experiment-page label.opt {
+  font-size: .85rem;
+}
+
+body.experiment-page .note,
+body.experiment-page .legend {
+  color: rgba(236, 235, 228, .62);
+}
+
+body.experiment-page .panel {
+  border-color: var(--shell-line);
+  border-radius: 4px;
+  background: rgba(16, 16, 25, .72);
+}
+
+body.experiment-page canvas {
+  border-color: var(--shell-line);
+  border-radius: 4px;
+}
+
+/* controls in the lab's colours instead of the browser's */
+body.experiment-page button {
+  border: 1px solid rgba(236, 235, 228, .24);
+  border-radius: 999px;
+  background: rgba(236, 235, 228, .05);
+  color: var(--shell-ink);
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: .75rem;
+  letter-spacing: .06em;
+  transition: border-color .2s, background .2s, color .2s;
+}
+
+body.experiment-page button:hover:not(:disabled) {
+  border-color: var(--shell-cyan);
+  background: rgba(95, 227, 208, .1);
+  color: #fff;
+}
+
+body.experiment-page button.primary {
+  border-color: rgba(95, 227, 208, .6);
+  background: rgba(95, 227, 208, .14);
+  color: #fff;
+}
+
+body.experiment-page button.primary:hover:not(:disabled) {
+  background: rgba(95, 227, 208, .24);
+}
+
+body.experiment-page button:disabled {
+  opacity: .45;
+  cursor: default;
+}
+
+body.experiment-page input,
+body.experiment-page select,
+body.experiment-page textarea {
+  accent-color: var(--shell-cyan);
+  color-scheme: dark;
+}
+
+body.experiment-page select,
+body.experiment-page input[type="text"],
+body.experiment-page input:not([type]),
+body.experiment-page textarea {
+  border: 1px solid rgba(236, 235, 228, .24);
+  border-radius: 4px;
+  background: rgba(8, 8, 13, .85);
+  color: var(--shell-ink);
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: .85rem;
+}
+
+body.experiment-page select {
+  padding: 0 .6rem;
+}
+
+/* Game of Life: the board fills the screen, the introduction sits above the controls */
+body.game-life-page .life-intro {
+  padding: .9rem clamp(.9rem, 3vw, 2rem) .2rem;
+}
+
+body.game-life-page .life-intro h1 {
+  font-size: clamp(1.5rem, 3vw, 2.1rem);
+  margin: 0 0 .3rem;
+}
+
+body.game-life-page .life-intro h1::before {
+  display: none;
+}
+
+body.game-life-page .life-intro .sub {
+  margin: 0;
+  font-size: .92rem;
+}
+
+body.game-life-page #bar {
+  background: transparent;
+  padding: .6rem clamp(.9rem, 3vw, 2rem);
+}
+
+@media (max-width: 700px) {
+  body.experiment-page h1::before { margin-bottom: .6rem; }
+  body.experiment-page .cols { flex-direction: column; }
 }

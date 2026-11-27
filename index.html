@@ -120,7 +120,7 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--cp-yellow);outline-
 #skipBoot{
   position:fixed;right:clamp(1.2rem,5vw,4rem);bottom:clamp(1.2rem,6vh,3rem);z-index:201;
   background:none;border:1px solid rgba(236,235,228,.28);border-radius:99px;color:var(--ink-faint);
-  font-family:var(--mono);font-size:.72rem;letter-spacing:.28em;text-transform:uppercase;
+  font-family:var(--mono);font-size:.75rem;letter-spacing:.28em;text-transform:uppercase;
   padding:.7rem 1.3rem;cursor:pointer;transition:color .3s,border-color .3s;
 }
 #skipBoot:hover,#skipBoot:focus-visible{color:var(--cp-yellow);border-color:var(--cp-yellow)}
@@ -583,6 +583,22 @@ footer .fine a:hover{color:var(--ink-dim)}
   section.scene-active .kicker-line,footer.scene-active .kicker-line{opacity:.72;transform:none}
   section.scene-active .kicker-status,footer.scene-active .kicker-status{opacity:1;transform:none}
 }
+
+/* ---------- finishing pass ---------- */
+/* nothing may widen the page: entrance offsets and the findings rail stay inside the viewport */
+html{overflow-x:clip}
+@supports not (overflow-x:clip){html{overflow-x:hidden}}
+/* a scrim behind the fixed nav, so passing content fades out instead of colliding with the labels */
+#navscrim{position:fixed;top:0;left:0;right:0;height:5.8rem;z-index:109;pointer-events:none;
+  background:linear-gradient(to bottom,rgba(5,5,10,.95) 0%,rgba(5,5,10,.8) 52%,rgba(5,5,10,0) 100%)}
+/* running text keeps a dark halo and tiles a denser ground, so totems passing behind stay behind */
+section p,section li{text-shadow:0 1px 7px rgba(3,3,8,.96),0 0 22px rgba(3,3,8,.9)}
+.card{background:rgba(9,9,17,.84)}
+.link-tile{background:rgba(9,9,17,.82);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px)}
+.card .src{font-size:.75rem}
+/* section dots: a comfortable target around the same small dot */
+#hud{gap:0}
+#hud a{width:32px;height:32px}
 </style>
 <noscript><style>
 #loader,#skipBoot,#scanlines,#cur,#curRing{display:none!important}
@@ -667,6 +683,7 @@ section.scene-active .kicker-line,.kicker-line{opacity:.72!important;transform:n
   <a href="#media" data-sec="media" aria-label="Echoes"></a>
 </nav>
 
+<div id="navscrim" aria-hidden="true"></div>
 <header>
   <a class="logo" href="#hero"><b>SYN·CO·RE</b>&nbsp;LAB</a>
   <nav class="desktop-nav" aria-label="Primary navigation">
@@ -1303,10 +1320,12 @@ window.addEventListener("resize",measureCameraStops);
 
     /* a totem is not simply there: its particles leave the axon a little upstream, stream out
        to their places while you approach, and flow back into the axon downstream as you move on */
-    function scrollSpecimen(group,depth,stops){
+    const formed={}; /* name → formation phase, so signals can wait until their totem stands */
+    function scrollSpecimen(group,depth,stops,name){
       add(group,depth,210);
       if(reduceMotion)return group;
       const phase={value:0},items=[],inverse=new THREE.Matrix4();
+      if(name)formed[name]=phase;
       const formation={phase,stops,source:null,
         // The axon is fixed in the world; every cloud needs it in its own (possibly turning) frame.
         update(){
@@ -1685,7 +1704,7 @@ window.addEventListener("resize",measureCameraStops);
       cell.scale.setScalar(mobile ? .62 : 1.25);
       cell.rotation.set(.06,-.35,.14);
       cell.position.set(mobile?0:21*XF,mobile?14:3,-78); /* second totem: right, clear of the text column */
-      scrollSpecimen(cell,-78,[24,-4,-50,-78]);
+      scrollSpecimen(cell,-78,[24,-4,-50,-78],"neuron");
       cell.updateMatrixWorld(true);
       for(const [a,b] of paths)neuronSegs.push([
         a.clone().applyMatrix4(cell.matrixWorld).toArray(),b.clone().applyMatrix4(cell.matrixWorld).toArray()]);
@@ -1880,7 +1899,7 @@ window.addEventListener("resize",measureCameraStops);
         chipTraces.push([a,m],[m,b2]);
       }
       part(dottedTraces(ls,lc,.67,.92));
-      scrollSpecimen(chip,Z0,[-116,-148,-176,-204]);
+      scrollSpecimen(chip,Z0,[-116,-148,-176,-204],"chip");
       if(mobile){ /* shrink about the chip's centre and lift it onto the stage above the text */
         const k=.5,lift=19,moved=new Set();
         for(const part of parts){part.scale.setScalar(k);part.position.set(X0*(1-k),lift,Z0*(1-k));}
@@ -2044,7 +2063,7 @@ window.addEventListener("resize",measureCameraStops);
         }
       }
       net.add(dottedTraces(ls,lc,.67,.78));
-      scrollSpecimen(net,Z0,[-258,-290,-318,-344]);
+      scrollSpecimen(net,Z0,[-258,-290,-318,-344],"net");
     })();
 
     /* ---------- the hybrid cortex : bridge totem (z ≈ -405) ---------- */
@@ -2129,7 +2148,7 @@ window.addEventListener("resize",measureCameraStops);
       hybrid.rotation.set(.42,Math.PI/2+.34,0);
       hybrid.position.set(mobile?0:12*XF,mobile?13:-2,Z0); /* seventh totem: right, clear of the text */
       hybrid.scale.setScalar(mobile ? .62 : 1.12);
-      scrollSpecimen(hybrid,Z0,[-310,-340,-368,-396]);
+      scrollSpecimen(hybrid,Z0,[-310,-340,-368,-396],"hybrid");
     })();
 
     /* ---------- pulses : thoughts travelling the wires ---------- */
@@ -2139,22 +2158,22 @@ window.addEventListener("resize",measureCameraStops);
       /* action potentials racing along the neuron's dendrites */
       for(let i=0;i<Math.floor(46*K)+14;i++){
         const e=neuronSegs[(Math.random()*neuronSegs.length)|0];
-        if(e)all.push({a:e[0],b:e[1],t:Math.random(),sp:R(.012,.03),c:WHITE,neuron:true});
+        if(e)all.push({a:e[0],b:e[1],t:Math.random(),sp:R(.012,.03),c:WHITE,neuron:true,gate:formed.neuron});
       }
       /* signals running the chip's circuit traces */
       for(let i=0;i<Math.floor(55*K)+18;i++){
         const e=chipTraces[(Math.random()*chipTraces.length)|0];
-        if(e)all.push({a:e[0],b:e[1],t:Math.random(),sp:R(.008,.022),c:CYAN});
+        if(e)all.push({a:e[0],b:e[1],t:Math.random(),sp:R(.008,.022),c:CYAN,gate:formed.chip});
       }
       /* signals sweeping forward through the perceptron */
       for(let i=0;i<Math.floor(50*K)+16;i++){
         const e=netEdges[(Math.random()*netEdges.length)|0];
-        if(e)all.push({a:e[0],b:e[1],t:Math.random(),sp:R(.01,.025),c:YELL});
+        if(e)all.push({a:e[0],b:e[1],t:Math.random(),sp:R(.01,.025),c:YELL,gate:formed.net});
       }
       /* thoughts crossing the split-brain seam */
       for(let i=0;i<Math.floor(40*K)+14;i++){
         const e=seamEdges[(Math.random()*seamEdges.length)|0];
-        if(e)all.push({a:e[0],b:e[1],t:Math.random(),sp:R(.004,.012),c:WHITE});
+        if(e)all.push({a:e[0],b:e[1],t:Math.random(),sp:R(.004,.012),c:WHITE,gate:formed.hybrid});
       }
       if(!all.length)return;
       const pos=new Float32Array(all.length*3),col=new Float32Array(all.length*3);
@@ -2181,7 +2200,7 @@ window.addEventListener("resize",measureCameraStops);
         i++;
       }
       const obj=buildPoints(pos,col,1.1,1);
-      add(obj,-285,210);
+      scrollSpecimen(obj,-285,[-176,-214,-300,-334]);
       wave={attr:obj.geometry.attributes.position,base,n};
     })();
 
@@ -2271,7 +2290,7 @@ window.addEventListener("resize",measureCameraStops);
         const radius=15*Math.pow(.86,k),n=Math.round(radius*(mobile?4:6));
         for(let i=0;i<n;i++)dot(radius,i/n*Math.PI*2+k*.21,Z-k*4.2,1.1*Math.pow(.84,k));
       }
-      portalObj=add(buildPoints(new Float32Array(pts),new Float32Array(cols),1.15,1),Z,280);
+      portalObj=scrollSpecimen(buildPoints(new Float32Array(pts),new Float32Array(cols),1.15,1),Z,[-536,-592,-900,-960]);
     })();
 
     /* ---------- the path : one luminous thread connecting every totem ---------- */
@@ -2902,7 +2921,10 @@ function frame(now){
       const firing=1+3.5*t.neuronBoost;
       if(t.neuronMat)t.neuronMat.size=t.neuronMat.userData.size*(1+.3*t.neuronBoost);
       for(let i=0;i<L.length;i++){
-        const q=L[i];q.t+=q.sp*dt*60*(q.neuron?firing:1);
+        const q=L[i];
+        /* a signal has nothing to run on until its totem has formed, or once it has dissolved */
+        if(q.gate&&(q.gate.value<.93||q.gate.value>1.07)){arr[i*3+1]=-9999;continue;}
+        q.t+=q.sp*dt*60*(q.neuron?firing:1);
         if(q.t>1){
           q.t=0;
           /* near the camera, an arriving signal releases a little transmitter */
